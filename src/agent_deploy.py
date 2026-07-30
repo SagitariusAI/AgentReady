@@ -21,6 +21,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Sequence
 
+from agent_prerequisites import build_report as build_prerequisite_report
+from agent_prerequisites import print_human as print_prerequisites_human
+
 
 @dataclass(frozen=True)
 class Step:
@@ -119,6 +122,10 @@ def deploy(
     target_repo = _validate_target(target_repo, source)
     if mode not in {"human", "agent"}:
         raise ValueError("mode must be 'human' or 'agent'")
+    prerequisite_report = build_prerequisite_report("core")
+    if prerequisite_report["overall"] != "PASS":
+        missing = ", ".join(prerequisite_report["blocking"])
+        raise RuntimeError(f"required AgentReady prerequisites are missing: {missing}")
 
     uv = uv_path or shutil.which("uv")
     if not uv:
@@ -159,6 +166,7 @@ def deploy(
     for command_name in (
         "agentready",
         "agent-deploy",
+        "agent-prerequisites",
         "agent-bootstrap-repo",
         "agent-coordination",
         "factory-capture",
@@ -240,6 +248,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--target-repo", type=Path)
     parser.add_argument("--runtime-home", type=Path)
+    parser.add_argument(
+        "--prerequisites-only",
+        action="store_true",
+        help="List/check prerequisites without installing or changing a repository.",
+    )
+    parser.add_argument(
+        "--prerequisite-profile",
+        choices=("core", "recommended", "full", "development"),
+        default="recommended",
+    )
+    parser.add_argument(
+        "--strict-prerequisites",
+        action="store_true",
+        help="Treat every missing item in the selected prerequisite profile as blocking.",
+    )
     parser.add_argument("--force", action="store_true", help="Replace an existing uv tool installation.")
     parser.add_argument("--yes", action="store_true", help="Confirm installation without a prompt.")
     parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON result.")
@@ -253,6 +276,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "agent" and (not args.yes or not args.json):
         print("Agent mode requires both --yes and --json.", file=sys.stderr)
         return 2
+    if args.prerequisites_only:
+        report = build_prerequisite_report(
+            args.prerequisite_profile,
+            strict=args.strict_prerequisites,
+        )
+        if args.json:
+            print(json.dumps(report, sort_keys=True))
+        else:
+            print_prerequisites_human(report)
+        return 0 if report["overall"] == "PASS" else 1
     if not args.yes and not args.dry_run:
         if not sys.stdin.isatty():
             print("Noninteractive deployment requires --yes.", file=sys.stderr)

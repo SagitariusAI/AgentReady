@@ -79,6 +79,7 @@ def test_deploy_installs_verifies_and_bootstraps_target(tmp_path: Path):
         "resolve-tool-bin",
         "verify-agentready",
         "verify-agent-deploy",
+        "verify-agent-prerequisites",
         "verify-agent-bootstrap-repo",
         "verify-agent-coordination",
         "verify-factory-capture",
@@ -176,3 +177,20 @@ def test_json_cli_contract_for_agent_dry_run(tmp_path: Path, capsys, monkeypatch
     payload = json.loads(capsys.readouterr().out)
     assert payload["overall"] == "PLANNED"
     assert payload["mode"] == "agent"
+
+
+def test_agent_can_request_prerequisites_without_installing(capsys):
+    result = agent_deploy.main([
+        "--mode",
+        "agent",
+        "--yes",
+        "--json",
+        "--prerequisites-only",
+        "--prerequisite-profile",
+        "full",
+    ])
+    assert result == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "agentready.prerequisites.v1"
+    assert payload["profile"] == "full"
+    assert payload["overall"] == "PASS"

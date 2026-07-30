@@ -18,6 +18,7 @@ COMMANDS: dict[str, str] = {
     "data-foundry-event-runner": "agent_data_foundry_event_runner",
     "deploy": "agent_deploy",
     "package-public": "agent_public_package",
+    "prerequisites": "agent_prerequisites",
     "publication-guard": "agent_publication_guard",
     "history-search": "agent_history_search",
     "release-readiness": "agent_release_readiness",
@@ -58,6 +59,8 @@ def _entrypoint(command: str):
         from agent_deploy import main
     elif command == "package-public":
         from agent_public_package import main
+    elif command == "prerequisites":
+        from agent_prerequisites import main
     elif command == "publication-guard":
         from agent_publication_guard import main
     elif command == "history-search":

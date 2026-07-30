@@ -37,6 +37,7 @@ agent-governance-detectors = "agent_governance_detectors:main"
 agent-data-foundry = "agent_data_foundry:main"
 agent-data-foundry-event-runner = "agent_data_foundry_event_runner:main"
 agent-package-public = "agent_public_package:main"
+agent-prerequisites = "agent_prerequisites:main"
 agent-publication-guard = "agent_publication_guard:main"
 agent-history-search = "agent_history_search:main"
 agent-release-readiness = "agent_release_readiness:main"
@@ -74,6 +75,7 @@ py-modules = [
   "agent_data_foundry_event_runner",
   "agent_deploy",
   "agent_public_package",
+  "agent_prerequisites",
   "agent_publication_guard",
   "agent_history_search",
   "agent_release_readiness",

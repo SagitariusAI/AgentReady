@@ -9,6 +9,8 @@
 - PowerShell 7 recommended
 
 No fixed drive letter, Windows username, database server, service account, API key, or network service is required.
+The complete required and optional inventory is maintained in
+[Prerequisites and third-party downloads](PREREQUISITES.md).
 
 ## Verify the download before execution
 
@@ -37,6 +39,18 @@ python .\install-agentready.py --dry-run
 
 The dry run validates the source checkout and the availability of `uv`, then prints the steps it would execute. It
 does not install commands or bootstrap a repository.
+
+To inspect prerequisites without changing anything:
+
+```powershell
+python .\install-agentready.py --prerequisites-only --prerequisite-profile recommended
+```
+
+For an LLM:
+
+```powershell
+python .\install-agentready.py --mode agent --yes --json --prerequisites-only --prerequisite-profile full
+```
 
 ## Human installation
 
@@ -154,6 +168,7 @@ uv sync --frozen --group dev --extra toolbox
 ```powershell
 agentready --help
 agent-deploy --help
+agent-prerequisites --profile recommended
 agent-coordination --help
 factory-capture --help
 ```

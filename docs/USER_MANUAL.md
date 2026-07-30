@@ -18,6 +18,10 @@ AgentReady separates four kinds of information:
 A public installation contains none of the last three. They are created only when commands are run. AgentReady does
 not require a hosted account, API key, database server, or network service.
 
+Python, Git, and uv are the only hard installation prerequisites. Serena and Graphify are recommended companion
+tools; Qdrant, Ollama, Docker, AgentGraph, toolbox packages, and development scanners are optional. See the
+[authoritative prerequisite and third-party download list](PREREQUISITES.md).
+
 ## 2. Installation
 
 ### Verify the release first
@@ -49,6 +53,12 @@ python .\install-agentready.py
 The first command produces a plan. The second asks for confirmation, installs AgentReady with `uv tool install`,
 resolves uv's tool directory, and verifies the public command surface.
 
+Inspect the companion-tool catalog before installation:
+
+```powershell
+python .\install-agentready.py --prerequisites-only --prerequisite-profile recommended
+```
+
 To bootstrap an existing repository during installation:
 
 ```powershell
@@ -77,6 +87,20 @@ Then run the same command without `--dry-run`. Accept the deployment only when t
 Agent mode refuses to run without both `--yes` and `--json`. Automation must not retry with `--force`, change the
 target path, or delete state to make a failure disappear unless the operator explicitly authorizes that action.
 
+Before deployment, obtain the complete download and availability list:
+
+```powershell
+python .\install-agentready.py `
+  --mode agent `
+  --yes `
+  --json `
+  --prerequisites-only `
+  --prerequisite-profile full
+```
+
+The caller must inspect `blocking`, each entry's `installed` value, official `download_url`, and
+`publicly_available`. It must never invent a download source for an unavailable companion.
+
 ### Installer options
 
 | Option | Meaning |
@@ -86,6 +110,9 @@ target path, or delete state to make a failure disappear unless the operator exp
 | `--source PATH` | AgentReady source containing `pyproject.toml` and `uv.lock`. |
 | `--target-repo PATH` | Existing repository to bootstrap after installation. |
 | `--runtime-home PATH` | `AGENTREADY_HOME` for deployment steps. |
+| `--prerequisites-only` | Check/list prerequisites without installing AgentReady. |
+| `--prerequisite-profile PROFILE` | Select `core`, `recommended`, `full`, or `development`. |
+| `--strict-prerequisites` | Treat every missing selected companion as blocking. |
 | `--dry-run` | Validate and emit a plan without installing or bootstrapping. |
 | `--force` | Replace the uv-managed tool installation; it does not erase runtime data. |
 | `--yes` | Confirm without a prompt. |
@@ -101,6 +128,7 @@ The installed console commands are:
 
 - `agentready` — unified public command dispatcher;
 - `agent-deploy` and `agent-bootstrap-repo` — deployment and repository onboarding;
+- `agent-prerequisites` — required and optional third-party availability/download catalog;
 - `agent-coordination`, `agent-commit-guard`, `agent-history-search`, `agent-workstate`, and
   `agent-version-record` — governed work and evidence;
 - `factory-capture` — local repository activity capture;

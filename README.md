@@ -26,6 +26,9 @@ only when the operator explicitly enables `factory-capture summarize --ollama`.
 - Git
 - [uv](https://docs.astral.sh/uv/)
 
+See the [complete prerequisite and third-party download list](docs/PREREQUISITES.md) before installing companion
+memory, graph, local-model, or container tools.
+
 ## Install for regular use
 
 Obtain AgentReady from its official release source. Before running any included script, compare the downloaded
@@ -48,8 +51,9 @@ python .\install-agentready.py
 agentready --help
 ```
 
-The installer uses `uv tool install`, verifies the installed `agentready`, `agent-coordination`, and
-`factory-capture` commands, and can optionally bootstrap an existing target repository:
+The installer uses `uv tool install`, verifies the installed `agentready`, `agent-deploy`, `agent-prerequisites`,
+`agent-bootstrap-repo`, `agent-coordination`, and `factory-capture` commands, and can optionally bootstrap an existing
+target repository:
 
 ```powershell
 python .\install-agentready.py --target-repo "C:\path\to\your-repository"
@@ -69,6 +73,11 @@ python .\install-agentready.py --mode agent --yes --json
 
 The caller must check both the process exit code and the JSON `overall` value. A dry run succeeds with `PLANNED`; an
 actual installation succeeds with `PASS`. Agent mode refuses to run unless both `--yes` and `--json` are present.
+An LLM can obtain the complete machine-readable prerequisite catalog first:
+
+```powershell
+python .\install-agentready.py --mode agent --yes --json --prerequisites-only --prerequisite-profile full
+```
 
 ## Install for development
 
@@ -134,6 +143,7 @@ the repository being observed. A fresh installation starts with no runtime recor
 
 See the guides for [Windows installation](docs/INSTALL_WINDOWS.md),
 [complete operation](docs/USER_MANUAL.md),
+[prerequisites and third-party downloads](docs/PREREQUISITES.md),
 [configuration](docs/CONFIGURATION.md), [database handling](docs/DATABASES.md),
 [security and privacy](docs/SECURITY_PRIVACY.md), [retention and backup](docs/DATA_RETENTION_AND_EXPORT.md),
 and [uninstallation](docs/UNINSTALL.md).
