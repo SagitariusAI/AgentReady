@@ -11,10 +11,6 @@ AgentReady provides:
 - local CI, security, publication, packaging, and release-readiness checks;
 - deterministic utilities for common engineering calculations.
 
-The public distribution is intentionally clean. It contains source code, schemas, tests, and documentation only. It
-does not include captured activity, populated databases, datasets, credentials, network configuration, model files,
-or another user's runtime history.
-
 The installed runtime does not require a hosted service. Initial installation may contact Python package indexes
 through uv when required build components are not already cached. Optional local-model summarization is networked
 only when the operator explicitly enables `factory-capture summarize --ollama`.
