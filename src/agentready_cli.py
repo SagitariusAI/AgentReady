@@ -1,9 +1,7 @@
 """Unified public command surface for AgentReady."""
 from __future__ import annotations
 
-import importlib
 import sys
-from collections.abc import Callable
 
 COMMANDS: dict[str, str] = {
     "bootstrap-repo": "agent_bootstrap_repo",
@@ -33,17 +31,60 @@ def _usage() -> str:
     return f"usage: agentready <command> [args]\n\ncommands:\n{commands}"
 
 
+def _entrypoint(command: str):
+    """Resolve only a compile-time allowlisted module; user input never becomes an import name."""
+    if command == "bootstrap-repo":
+        from agent_bootstrap_repo import main
+    elif command == "ci":
+        from agent_ci_local import main
+    elif command == "commit-guard":
+        from agent_coordination.commit_guard import main
+    elif command == "coordination":
+        from agent_coordination.cli import main
+    elif command == "factory-capture":
+        from factory_capture.cli import main
+    elif command == "governance-check":
+        from agent_governance_detectors import main
+    elif command == "data-foundry":
+        from agent_data_foundry import main
+    elif command == "data-foundry-event-runner":
+        from agent_data_foundry_event_runner import main
+    elif command == "package-public":
+        from agent_public_package import main
+    elif command == "publication-guard":
+        from agent_publication_guard import main
+    elif command == "history-search":
+        from agent_history_search import main
+    elif command == "release-readiness":
+        from agent_release_readiness import main
+    elif command == "release-scorecard":
+        from agent_release_scorecard import main
+    elif command == "report-contract":
+        from agent_report_contract import main
+    elif command == "security-scan":
+        from agent_security_scan import main
+    elif command == "tool-context":
+        from agent_tool_context import main
+    elif command == "tool-router":
+        from agent_router import main
+    elif command == "version-record":
+        from agent_version_record import main
+    elif command == "workstate":
+        from agent_workstate import main
+    else:
+        raise KeyError(command)
+    return main
+
+
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help", "help"}:
         print(_usage())
         return 0
     command = sys.argv[1]
-    module_name = COMMANDS.get(command)
-    if not module_name:
+    if command not in COMMANDS:
         print(f"Unknown command: {command}\n\n{_usage()}", file=sys.stderr)
         return 2
-    module = importlib.import_module(module_name)
-    entry: Callable[..., int | None] = getattr(module, "main")
+    entry = _entrypoint(command)
     sys.argv = [f"agentready {command}", *sys.argv[2:]]
     result = entry()
     return int(result or 0)

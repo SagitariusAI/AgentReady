@@ -33,9 +33,7 @@ COMMON = [
     step("agent-coordination task-status", "Read current task and claim state."),
     step("agent-governance-detectors", "Check repository governance markers and boundaries."),
 ]
-DISCOVER = [
-    step("agent-report-contract", "Check canonical report pointers.", ".agent-reports/report-contract/latest.json"),
-]
+DISCOVER: list[dict[str, object]] = []
 CHANGE = [
     step("agent-ci-local", "Run repository-aware local CI.", ".agent-reports/ci/latest.json"),
 ]

@@ -1,22 +1,8 @@
-"""Release scorecard -- Python port of `bin/agent-release-scorecard.ps1` (PS->Python Phase 4, SHADOW).
+"""PASS/WARN/FAIL release authority for AgentReady.
 
-The release **PASS/WARN/FAIL authority**: aggregates the Factory evidence reports into an ordered list of
-findings and a final verdict. PowerShell stays authoritative until the flip. This module reproduces the
-durable logic byte-faithfully:
-
-- the ordered checks (semgrep-exclude → git → 8 required report dirs → vault/code → CI log → security
-  manifest/gitleaks/trivy/grype/semgrep → SBOM → product-quality → production-maturity → packaging),
-- the finding schema `{Status, Area, Message, Evidence}` and the exact messages,
-- the verdict (FAIL if any FAIL, else WARN if any WARN, else PASS),
-- the exit code (FAIL 2 / WARN 1 / PASS 0, all suppressed to 0 by `-WarnOnly`),
-- the JSON `{repo, generated_at, overall, failures, warnings, findings}` + the MD table,
-- degraded behavior: a missing report file is None (often FAIL/WARN); an INVALID json adds a
-  `FAIL 'Report parsing'` finding inline; the production-maturity FAIL is deliberately WARN (advisory, to
-  avoid a circular release-scorecard dependency).
-
-`--shadow` computes the Python verdict and writes a comparison vs the authoritative scorecard to
-`.agent-reports/release-scorecard/shadow/` WITHOUT overwriting the real scorecard (no wrapper flip yet).
-Parity proven in `smoke/agent_release_scorecard_shadow_smoke.py`.
+The public distribution uses exact-commit CI, security, publication-guard,
+archive, and readiness evidence. Legacy fixture helpers remain for compatibility
+with older report consumers, but are not part of the public release verdict.
 """
 from __future__ import annotations
 
@@ -451,8 +437,105 @@ def exit_code(overall: str, warn_only: bool) -> int:
     return 0
 
 
+def _public_distribution(repo: Path) -> bool:
+    return (repo / "src" / "agent_publication_guard.py").is_file() and (repo / "pyproject.toml").is_file()
+
+
+def _public_findings(repo: Path, *, allow_dirty: bool = False) -> list[dict]:
+    from agent_publication_guard import scan_archive
+
+    findings: list[dict] = []
+    head_proc = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    head = head_proc.stdout.strip()
+    status_proc = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=no"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    clean = head_proc.returncode == 0 and (allow_dirty or not status_proc.stdout.strip())
+    findings.append(_finding(
+        "PASS" if clean else "FAIL",
+        "Git",
+        "Exact committed source tree is clean." if clean else "Working tree is dirty or has no commit.",
+        f"HEAD {head or '<missing>'}",
+    ))
+
+    reports = repo / ".agent-reports"
+    security_path = reports / "security" / "security-manifest.json"
+    security = _read_json(str(security_path), findings)
+    security_ok = bool(security) and security.get("overall") == "PASS"
+    findings.append(_finding(
+        "PASS" if security_ok else "FAIL",
+        "Security",
+        "Security manifest is PASS." if security_ok else "Security manifest is missing or not PASS.",
+        str(security_path),
+    ))
+
+    guard_path = reports / "publication-guard" / "latest.json"
+    guard = _read_json(str(guard_path), findings)
+    guard_ok = bool(guard) and guard.get("overall") == "PASS" and guard.get("git_head") == head
+    findings.append(_finding(
+        "PASS" if guard_ok else "FAIL",
+        "Publication guard",
+        "Privacy and persistence guard is PASS and bound to HEAD."
+        if guard_ok else "Publication guard is missing, failed, or stale.",
+        str(guard_path),
+    ))
+
+    package_path = reports / "package-public" / "package-manifest.json"
+    package = _read_json(str(package_path), findings)
+    package_data = package or {}
+    archive = reports / "package-public" / str(package_data.get("archive", ""))
+    package_ok = bool(package) and package_data.get("git_head") == head and archive.is_file()
+    if package_ok:
+        archive_findings, archive_count = scan_archive(archive)
+        package_ok = (
+            hashlib.sha256(archive.read_bytes()).hexdigest() == package_data.get("archive_sha256")
+            and not archive_findings
+            and archive_count == package_data.get("archive_file_count")
+        )
+    findings.append(_finding(
+        "PASS" if package_ok else "FAIL",
+        "Packaging",
+        "Archive digest, inventory, guard, and Git head agree."
+        if package_ok else "Public package is missing, unsafe, corrupt, or stale.",
+        str(package_path),
+    ))
+
+    readiness_path = reports / "release-readiness" / "latest.json"
+    readiness = _read_json(str(readiness_path), findings)
+    readiness_ok = bool(readiness) and readiness.get("overall") == "PASS" and readiness.get("git_head") == head
+    findings.append(_finding(
+        "PASS" if readiness_ok else "FAIL",
+        "Release readiness",
+        "Canonical public readiness is PASS and bound to HEAD."
+        if readiness_ok else "Canonical public readiness is missing, failed, or stale.",
+        str(readiness_path),
+    ))
+
+    lock_ok = (repo / "uv.lock").is_file()
+    findings.append(_finding(
+        "PASS" if lock_ok else "FAIL",
+        "Supply chain",
+        "Resolved dependency lock is present." if lock_ok else "uv.lock is missing.",
+        str(repo / "uv.lock"),
+    ))
+    return findings
+
+
 def build_score(repo: str, allow_dirty: bool = False) -> dict:
-    findings = collect_findings(repo, allow_dirty=allow_dirty)
+    repo_path = Path(repo)
+    findings = (
+        _public_findings(repo_path, allow_dirty=allow_dirty)
+        if _public_distribution(repo_path)
+        else collect_findings(repo, allow_dirty=allow_dirty)
+    )
     verdict = decide(findings)
     return {"repo": str(repo), "generated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             "overall": verdict["overall"], "failures": verdict["failures"],
