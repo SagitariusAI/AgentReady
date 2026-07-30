@@ -1,5 +1,10 @@
 # Security and privacy
 
+The repository-level [Security Policy](../SECURITY.md), [Privacy Notice](../PRIVACY.md),
+[Disclaimer](../DISCLAIMER.md), [User Agreement](../USER_AGREEMENT.md), and [Apache License 2.0](../LICENSE)
+state the public reporting, privacy, risk, warranty, and liability terms. Nothing in this operational guide is a
+promise or guarantee.
+
 ## Default posture
 
 AgentReady's public core operates on local repositories and local state. It does not expose a network service, require

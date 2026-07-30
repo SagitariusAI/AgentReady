@@ -15,6 +15,14 @@ The installed runtime does not require a hosted service. Initial installation ma
 through uv when required build components are not already cached. Optional local-model summarization is networked
 only when the operator explicitly enables `factory-capture summarize --ollama`.
 
+## Legal and safety notice
+
+AgentReady is provided without promises or guarantees. Before downloading, installing, or using it, review the
+[User Agreement](USER_AGREEMENT.md), [Disclaimer](DISCLAIMER.md), [Privacy Notice](PRIVACY.md),
+[Security Policy](SECURITY.md), and [Apache License 2.0](LICENSE). You are responsible for deciding whether the
+software is appropriate for your environment, protecting your systems and data, reviewing automated output, and
+complying with applicable law and third-party terms.
+
 ## Requirements
 
 - Windows 10 or Windows 11
