@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_public_package import build
+from agent_public_package import _project_version, build
 from agent_publication_guard import PYTHON_HEADER, scan_archive, scan_source
 
 
@@ -26,14 +26,18 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _repo(tmp_path: Path) -> Path:
+def _repo(tmp_path: Path, *, version: str = "9.8.7") -> Path:
     repo = tmp_path / "source"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
     _git(repo, "config", "user.name", "AgentReady Test")
     _git(repo, "config", "user.email", "agentready-test@example.invalid")
     (repo / "README.md").write_text("# Safe public source\n", encoding="utf-8")
-    _git(repo, "add", "README.md")
+    (repo / "pyproject.toml").write_text(
+        f'[project]\nname = "agentready"\nversion = "{version}"\n',
+        encoding="utf-8",
+    )
+    _git(repo, "add", "README.md", "pyproject.toml")
     _git(repo, "commit", "-q", "-m", "Initial public source")
     return repo
 
@@ -45,15 +49,23 @@ def test_package_is_exact_head_and_contains_no_database(tmp_path: Path):
     archive = out / str(manifest["archive"])
 
     assert manifest["git_head"] == _git(repo, "rev-parse", "HEAD")
+    assert manifest["version"] == "9.8.7"
+    assert manifest["archive"] == "AgentReady-9.8.7-source.zip"
     assert manifest["archive_sha256"] == hashlib.sha256(archive.read_bytes()).hexdigest()
     assert scan_archive(archive)[0] == []
     with zipfile.ZipFile(archive) as bundle:
         names = bundle.namelist()
-        assert names == ["README.md", "SOURCE-MANIFEST.json"]
+        assert names == ["README.md", "pyproject.toml", "SOURCE-MANIFEST.json"]
         source_manifest = json.loads(bundle.read("SOURCE-MANIFEST.json"))
     assert source_manifest["git_head"] == manifest["git_head"]
     assert source_manifest["files"][0]["path"] == "README.md"
     assert not any(Path(name).suffix.lower() in {".db", ".sqlite", ".sqlite3", ".duckdb"} for name in names)
+
+
+def test_project_version_must_be_filename_safe(tmp_path: Path):
+    repo = _repo(tmp_path, version="../unsafe")
+    with pytest.raises(RuntimeError, match="filename-safe project.version"):
+        _project_version(repo)
 
 
 def test_package_refuses_dirty_worktree(tmp_path: Path):

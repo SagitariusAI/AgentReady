@@ -8,7 +8,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
+import tomllib
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +37,14 @@ def _blob(repo: Path, path: str) -> bytes:
     return data
 
 
+def _project_version(repo: Path) -> str:
+    pyproject = tomllib.loads(_blob(repo, "pyproject.toml").decode("utf-8", errors="strict"))
+    version = pyproject.get("project", {}).get("version")
+    if not isinstance(version, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+!-]*", version):
+        raise RuntimeError("pyproject.toml must define a filename-safe project.version")
+    return version
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -48,7 +58,7 @@ def build(repo: Path, out_dir: Path) -> dict[str, object]:
         raise RuntimeError(f"publication guard found {len(source_findings)} source finding(s)")
 
     head = str(_git(repo, "rev-parse", "HEAD"))
-    version = "1.0.0"
+    version = _project_version(repo)
     archive = out_dir / f"AgentReady-{version}-source.zip"
     files = _tracked_files(repo)
     inventory: list[dict[str, object]] = []
@@ -81,6 +91,7 @@ def build(repo: Path, out_dir: Path) -> dict[str, object]:
         "schema": "agentready.package_manifest.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "git_head": head,
+        "version": version,
         "archive": archive.name,
         "archive_sha256": _sha256(archive_bytes),
         "archive_bytes": len(archive_bytes),

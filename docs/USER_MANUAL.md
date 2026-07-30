@@ -322,6 +322,11 @@ A release claim is valid only when:
 `agent-package-public` refuses a dirty tree. Do not bypass a failing publication or release check. Correct the source,
 rerun the evidence chain, and review the new reports.
 
+The public packager reads the release version from `[project].version` in `pyproject.toml`, writes it to
+`package-manifest.json`, and names the archive `AgentReady-<version>-source.zip`. Keep `pyproject.toml` and `uv.lock`
+on the same version. Do not rename a generated archive by hand, because the manifest and digest must remain bound to
+the exact file produced from the committed source.
+
 ## 8. Data and memory safety
 
 - Never copy an existing operational database into the source checkout.
