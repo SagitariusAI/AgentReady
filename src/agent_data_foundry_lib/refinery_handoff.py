@@ -1,14 +1,14 @@
-"""Immutable, truth-labelled handoff from AgentReady curation to DataForge.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-AgentReady owns activity capture, curation, rights gating, and deterministic
-train/heldout candidate construction. Sovereign Studio DataForge owns the
-founder-mandated canonical refinery:
+"""Create immutable handoff bundles for an optional refinement pipeline.
 
-    curriculum -> Serena -> Graphify -> Serena -> final dataset
-
-This module packages immutable inputs for that refinery. It intentionally never
-labels an AgentReady export as a final dataset and never fabricates downstream
-stage acknowledgements.
+AgentReady performs activity capture, curation, rights gating, and deterministic
+train/heldout candidate construction. This module packages those inputs with a
+provider-neutral sequence of semantic enrichment, relationship enrichment,
+review, and final materialization. It never labels an intermediate export as a
+final dataset or fabricates downstream acknowledgements.
 """
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ from agent_data_foundry_lib.io_jsonl import now_utc
 
 CANONICAL_STAGES = (
     "curriculum_candidate",
-    "serena_semantic_enrichment",
-    "graphify_relationship_enrichment",
-    "serena_final_review",
+    "semantic_enrichment",
+    "relationship_enrichment",
+    "final_semantic_review",
     "final_dataset_materialization",
 )
 
@@ -117,19 +117,19 @@ def package_refinery_candidate(
         "generated_at": stamp,
         "task_id": task_id,
         "status": candidate_status,
-        "classification": "internal_only",
+        "classification": "restricted_use",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
         "cross_lane_import_policy": "explicit_only",
-        "refinery_owner": "Sovereign Studio DataForge",
+        "refinery_owner": "external training pipeline",
         "canonical_pipeline": list(CANONICAL_STAGES),
         "stages": stages,
         "artifacts": artifacts,
         "train_count": int(training_export.get("train_count") or 0),
         "heldout_count": int(training_export.get("heldout_count") or 0),
         "train_heldout_no_overlap": training_export.get("train_heldout_no_overlap") is True,
-        "all_internal_only": training_export.get("all_internal_only") is True,
+        "all_restricted_use": training_export.get("all_restricted_use") is True,
         "label_coverage": training_export.get("label_coverage") or {},
         "unsupported_labels": training_export.get("unsupported_labels") or [],
         "train_unsupported_labels": training_export.get("train_unsupported_labels") or [],
@@ -138,7 +138,7 @@ def package_refinery_candidate(
         "final_dataset_emitted": False,
         "model_training_performed": False,
         "promotion_allowed": False,
-        "required_next_receipt": "dataforge_refinery_completion_receipt",
+        "required_next_receipt": "refinery_completion_receipt",
     }
     manifest_path = out_root / "candidate_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

@@ -1,10 +1,8 @@
-"""Unit tests for the coordination CLI (PS->Python migration Phase 1G).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Exercises each subcommand's durable behavior + exit codes in-process against a throwaway git repo, with
-the coordination store and adapter home both redirected to tmp (so chat shims no-op and the work-state
-gate is deterministic — no live network). These complement
-smoke/agent_coordination_cli_parity_smoke.py (PS-vs-Python parity).
-"""
+"""Public support for test agent coordination cli."""
 from __future__ import annotations
 
 import json
@@ -14,7 +12,6 @@ from pathlib import Path
 import pytest
 
 import agent_runtime_paths
-from agent_coordination import chat as _chat
 from agent_coordination import cli
 
 
@@ -33,10 +30,7 @@ def repo(tmp_path, monkeypatch):
     workstate.write_text("raise SystemExit(0)\n", encoding="utf-8")
     monkeypatch.setattr(agent_runtime_paths, "COORDINATION_ROOT", home / "coordination")
     monkeypatch.setattr(agent_runtime_paths, "WORKTREE_ROOT", home / "worktrees")
-    monkeypatch.setattr(cli, "AGENTREADY_HOME", home)  # no src/config -> adapters short-circuit
-    # The chat seam reads its OWN module-level AGENTREADY_HOME (not cli's); redirect it too so
-    # publish_chat/show_unread find no config/matrix.json and no-op -- NO live Matrix posts from tests.
-    monkeypatch.setattr(_chat, "AGENTREADY_HOME", home)
+    monkeypatch.setattr(cli, "AGENTREADY_HOME", home)
     return work
 
 
@@ -117,7 +111,7 @@ def test_task_start_conflict_exit2(repo):
 
 
 def test_task_start_file_as_repo_clean_exit2(repo, tmp_path, capsys):
-    """FACTORY-ANOMALY-20260620-claim-helper-path-misparse: a file path leaking into --repo must
+    """regression-path-misparse: a file path leaking into --repo must
     exit cleanly (code 2) with a clear message — NOT a traceback — and create no task record."""
     leaked = tmp_path / "stage_forge_deploy_tarball.sh"
     leaked.write_text("echo x", encoding="utf-8")
@@ -145,11 +139,11 @@ def test_conflict_check(repo):
 
 
 def test_conflict_check_file_as_repo_clean_exit2(repo, tmp_path, capsys):
-    """FACTORY-ANOMALY-20260621-062847-claim-helper-space-separated-paths: a file path leaking into
+    """regression-space-separated-paths: a file path leaking into
     --repo (e.g. the 2nd of a space-separated -Paths list in the PS wrapper) must exit cleanly (code 2)
     with a clear 'must be a directory' message -- NOT a traceback -- for conflict-check just as for
     task-start. The PS wrapper now also disables positional binding so the leak cannot happen there."""
-    leaked = tmp_path / "test_sovereign_forge_cf1_builder_retry_reexecutes.py"
+    leaked = tmp_path / "test_private_service_builder_retry_reexecutes.py"
     leaked.write_text("def test_x():\n    pass\n", encoding="utf-8")
     rc = cli.main(["conflict-check", "--repo", str(leaked), "--paths", "a.py,b.py"])
     assert rc == 2
@@ -178,9 +172,9 @@ def test_handoff_wip_then_complete(repo):
     ]) == 0
     assert cli.main([
         "task-memory", "--repo", str(repo), "--task-id", task_id, "--agent", "claude",
-        "--kind", "serena_read", "--store", "serena-factory",
+        "--kind", "memory_read", "--store", "shared-memory",
         "--memory-name", "global/factory-doctrine-and-protocols",
-        "--evidence", "Serena memory read receipt",
+        "--evidence", "semantic memory memory read receipt",
     ]) == 0
     # complete handoff: the deterministic work-state gate fixture authorizes completion.
     assert cli.main(["task-handoff", "--repo", str(repo), "--task-id", task_id, "--agent", "claude",

@@ -1,24 +1,8 @@
-"""Cerberus Sentinel training exporter for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase I1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the export-only (NO training) Cerberus Sentinel training-set builder moved verbatim
-out of agent_data_foundry.py with **no behavior change**. It builds the internal SFT /
-classification / heldout-eval sets from the Factory Dojo's labeled claim-evidence
-records, with a deterministic key-stable split (train and heldout never overlap),
-F_QUARANTINE rows + off-target labels excluded, input text leak-scrubbed (a severe
-finding drops the row), and the LogosOne curriculum + creator-provenance blocks on
-every row. Historical chat segments are counted as unlabeled candidate enrichment
-only -- never labeled, never a fabricated pair. Internal-only; never writes under
-40_release_ready, never mutates sealed Cerberus v0.1, model_training_performed=False.
-
-Near-leaf: imports the sibling lib modules (io_jsonl, logosone, provenance, safety_scan,
-historical_chat, eval_gate for cerberus_sentinel_export_root, schemas for
-SENTINEL_TRAINING_LABELS) + stdlib. The two shared central helpers -- `inhouse_dojo_root`
-(the Dojo path, also used by the central Dojo builder + signal-coverage / safety / rights
-reports) and the founder-pinned `_current_git_commit` -- stay central and are imported
-LAZILY at call time, so there is no module-level import cycle. That lazy import is the
-documented remaining coupling for the eventual Dojo-builder extraction.
-"""
+"""ClaimEvidence Sentinel training exporter for the Agent Data Foundry."""
 from __future__ import annotations
 
 import hashlib
@@ -26,8 +10,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_data_foundry_lib.dojo import inhouse_dojo_root
-from agent_data_foundry_lib.eval_gate import cerberus_sentinel_export_root
+from agent_data_foundry_lib.curated_dataset import curated_dataset_root
+from agent_data_foundry_lib.eval_gate import claim_evidence_sentinel_export_root
 from agent_data_foundry_lib.historical_chat import historical_chats_root
 from agent_data_foundry_lib.io_jsonl import (
     append_jsonl,
@@ -39,14 +23,18 @@ from agent_data_foundry_lib.io_jsonl import (
     rel,
     write_json,
 )
-from agent_data_foundry_lib.logosone import _LOGOSONE_FAMILY, _LOGOSONE_LABEL_MAP, build_logosone_block
+from agent_data_foundry_lib.paired_curriculum import (
+    _PAIRED_CURRICULUM_FAMILY,
+    _PAIRED_CURRICULUM_LABEL_MAP,
+    build_paired_curriculum_block,
+)
 from agent_data_foundry_lib.paths import AGENTREADY_HOME, _current_git_commit
 from agent_data_foundry_lib.provenance import build_creator_provenance_envelope, summarize_provenance
 from agent_data_foundry_lib.safety_scan import _scan_source_signal_value
 from agent_data_foundry_lib.schemas import SENTINEL_TRAINING_LABELS
 
 SENTINEL_SYSTEM_PROMPT = (
-    "You are the Cerberus Factory Sentinel. Given a software-delivery claim and its "
+    "You are the ClaimEvidence Factory Sentinel. Given a software-delivery claim and its "
     "evidence, decide whether the claim is supported. Respond ONLY with strict JSON: "
     '{"verdict": "SAFE|BLOCK|NEEDS_HUMAN", "labels": [], "evidence": [], '
     '"risk_score": 0, "required_action": ""}. Trust evidence, not claims.'
@@ -103,7 +91,7 @@ def _sentinel_target(row: dict[str, Any], verdict: str) -> dict[str, Any]:
 def _sentinel_heldout(key: str, heldout_pct: int) -> bool:
     """Deterministic, key-stable train/heldout assignment: the same source key is
     always on the same side, so heldout never overlaps train."""
-    digest = hashlib.sha256(("cerberus-sentinel-v0.1:" + str(key)).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(("claim_evidence-sentinel-v0.1:" + str(key)).encode("utf-8")).hexdigest()
     return (int(digest[:8], 16) % 100) < max(0, min(100, int(heldout_pct)))
 
 
@@ -149,22 +137,22 @@ def _lineage_lookup(root: Path) -> dict[str, dict[str, Any]]:
     return lookup
 
 
-def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldout_pct: int = 20,
+def export_claim_evidence_sentinel_training(root: Path | str = AGENTREADY_HOME, heldout_pct: int = 20,
                                       source_commit: str | None = None) -> dict[str, Any]:
     """Export-only (NO training). Build internal SFT / classification / heldout-eval
-    sets for the Cerberus Sentinel from the internal Factory Dojo's labeled
+    sets for the ClaimEvidence Sentinel from the internal Curated Dataset's labeled
     claim-evidence records. Deterministic split, no train/heldout overlap;
     F_QUARANTINE rows and off-target labels excluded; input text leak-scrubbed (a
     severe finding drops the row). Historical chat segments are counted as
-    unlabeled candidate enrichment only -- never labeled. Internal-only; never
-    writes under 40_release_ready and never mutates sealed Cerberus v0.1."""
-    # inhouse_dojo_root now lives in the dojo.py leaf (imported at module level, Phase J1).
-    # _current_git_commit now lives in the paths leaf (Phase N), imported at module level --
+    unlabeled candidate enrichment only -- never labeled. Restricted-use; never
+    writes under 40_release_ready and never mutates sealed ClaimEvidence v0.1."""
+
+
     # the last lazy back-import into agent_data_foundry is gone.
     root = Path(root)
-    out_dir = cerberus_sentinel_export_root(root)
+    out_dir = claim_evidence_sentinel_export_root(root)
     out_dir.mkdir(parents=True, exist_ok=True)
-    dojo_rows = read_jsonl(inhouse_dojo_root(root) / "factory_dojo_internal.jsonl")
+    dataset_rows = read_jsonl(curated_dataset_root(root) / "curated_dataset_internal.jsonl")
     lineage_lookup = _lineage_lookup(root)
     commit = source_commit if source_commit is not None else _current_git_commit(root)
     provenance_envelopes: list[dict[str, Any]] = []
@@ -182,8 +170,8 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
     train_keys: set[str] = set()
     heldout_keys: set[str] = set()
     lineage_rows: list[dict[str, Any]] = []
-    # LogosOne curriculum distributions.
-    logosone_count = 0
+    # PairedCurriculum curriculum distributions.
+    paired_curriculum_count = 0
     sign_dist: dict[str, int] = {}
     grade_dist: dict[str, int] = {}
     anchor_dist: dict[str, int] = {}
@@ -195,15 +183,15 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
     # Pre-pass: which signed-pair families actually have both a + and a - example,
     # so pair_status is honest (no fabricated positive counterexamples).
     family_signs: dict[str, set[str]] = {}
-    for row in dojo_rows:
+    for row in dataset_rows:
         if str((row.get("data_rights") or {}).get("grade")) == "F_QUARANTINE":
             continue
         inc = str(row.get("incident_type") or "")
         if inc in SENTINEL_TRAINING_LABELS:
-            family_signs.setdefault(_LOGOSONE_FAMILY[inc], set()).add(_LOGOSONE_LABEL_MAP[inc][0])
+            family_signs.setdefault(_PAIRED_CURRICULUM_FAMILY[inc], set()).add(_PAIRED_CURRICULUM_LABEL_MAP[inc][0])
     pair_status_by_family = {family: ("paired" if {"+", "-"} <= signs else "unpaired") for family, signs in family_signs.items()}
 
-    for row in dojo_rows:
+    for row in dataset_rows:
         rights = as_dict(row.get("data_rights"))
         if str(rights.get("grade")) == "F_QUARANTINE":
             excluded["quarantine"] += 1
@@ -233,7 +221,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         target = _sentinel_target(row, verdict)
         key = str(row.get("source_id_hash") or row.get("fingerprint") or input_text)
         lineage = {
-            "source_pool": "factory_dojo",
+            "source_pool": "curated_dataset",
             "source_id_hash": str(row.get("source_id_hash") or ""),
             "fingerprint": str(row.get("fingerprint") or ""),
             "incident_type": incident,
@@ -248,16 +236,16 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
             label_provenance.setdefault(incident, {}).get(provenance_type, 0) + 1
         )
 
-        logosone = build_logosone_block(row, incident, pair_status_by_family)
-        logosone_count += 1
-        sign_dist[logosone["sign"]] = sign_dist.get(logosone["sign"], 0) + 1
-        grade_dist[logosone["grade"]] = grade_dist.get(logosone["grade"], 0) + 1
-        for anchor in logosone["anchors"]:
+        paired_curriculum = build_paired_curriculum_block(row, incident, pair_status_by_family)
+        paired_curriculum_count += 1
+        sign_dist[paired_curriculum["sign"]] = sign_dist.get(paired_curriculum["sign"], 0) + 1
+        grade_dist[paired_curriculum["grade"]] = grade_dist.get(paired_curriculum["grade"], 0) + 1
+        for anchor in paired_curriculum["anchors"]:
             anchor_dist[anchor] = anchor_dist.get(anchor, 0) + 1
-        spine_key = " -> ".join(logosone["workflow_spine"])
+        spine_key = " -> ".join(paired_curriculum["workflow_spine"])
         spine_dist[spine_key] = spine_dist.get(spine_key, 0) + 1
-        pair_id_counts[logosone["pair_id"]] = pair_id_counts.get(logosone["pair_id"], 0) + 1
-        if logosone["pair_status"] == "paired":
+        pair_id_counts[paired_curriculum["pair_id"]] = pair_id_counts.get(paired_curriculum["pair_id"], 0) + 1
+        if paired_curriculum["pair_status"] == "paired":
             paired_rows += 1
         else:
             unpaired_rows += 1
@@ -268,7 +256,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         if _sentinel_heldout(key, heldout_pct):
             label_counts["heldout"][incident] = label_counts["heldout"].get(incident, 0) + 1
             heldout_keys.add(key)
-            heldout_eval.append({"input": input_text, "label": incident, "expected": target, "logosone": logosone, "metadata": lineage, **provenance})
+            heldout_eval.append({"input": input_text, "label": incident, "expected": target, "paired_curriculum": paired_curriculum, "metadata": lineage, **provenance})
             split_name = "heldout"
         else:
             label_counts["train"][incident] = label_counts["train"].get(incident, 0) + 1
@@ -279,11 +267,11 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
                     {"role": "user", "content": input_text},
                     {"role": "assistant", "content": json.dumps(target, ensure_ascii=False, sort_keys=True)},
                 ],
-                "logosone": logosone,
+                "paired_curriculum": paired_curriculum,
                 "metadata": lineage,
                 **provenance,
             })
-            classification_train.append({"input": input_text, "label": incident, "verdict": verdict, "logosone": logosone, "metadata": lineage, **provenance})
+            classification_train.append({"input": input_text, "label": incident, "verdict": verdict, "paired_curriculum": paired_curriculum, "metadata": lineage, **provenance})
             split_name = "train"
         lineage_rows.append(
             {
@@ -309,7 +297,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
     write_json(
         lineage_path,
         {
-            "schema_version": "sf.dojo_training_export.lineage.v1",
+            "schema_version": "sf.dataset_training_export.lineage.v1",
             "generated_at": now_utc(),
             "row_count": len(lineage_rows),
             "rows": lineage_rows,
@@ -327,7 +315,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         and readback["heldout_eval"] == len(heldout_eval)
     )
     no_overlap = train_keys.isdisjoint(heldout_keys)
-    all_internal_only = export_allowed_seen == 0 and sale_allowed_seen == 0
+    all_restricted_use = export_allowed_seen == 0 and sale_allowed_seen == 0
     label_coverage = {
         label: {
             "train": label_counts["train"].get(label, 0),
@@ -341,13 +329,13 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
     train_unsupported_labels = [label for label, support in label_coverage.items() if support["train"] == 0]
     heldout_unsupported_labels = [label for label, support in label_coverage.items() if support["heldout"] == 0]
     broad_label_readiness = not unsupported_labels and not train_unsupported_labels and not heldout_unsupported_labels
-    readiness_status = "INHOUSE_READY" if broad_label_readiness else "INHOUSE_PARTIAL_LABEL_COVERAGE"
+    readiness_status = "CURATED_READY" if broad_label_readiness else "CURATED_PARTIAL_LABEL_COVERAGE"
 
     curriculum_summary = {
-        "curriculum": "LogosOne",
-        "schema_version": "sf.logosone_curriculum.v0.1",
-        "rights_scope": "internal_only",
-        "rows_with_logosone": logosone_count,
+        "curriculum": "PairedCurriculum",
+        "schema_version": "sf.paired_curriculum_curriculum.v0.1",
+        "rights_scope": "restricted_use",
+        "rows_with_paired_curriculum": paired_curriculum_count,
         "sign_distribution": sign_dist,
         "grade_distribution": grade_dist,
         "anchor_distribution": anchor_dist,
@@ -363,18 +351,18 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
     provenance_summary = summarize_provenance(provenance_envelopes)
 
     export_manifest = {
-        "schema_version": "sf.dojo_training_export.cerberus_sentinel.v0.1",
-        "dataset_id": "cerberus-sentinel-v0.1",
+        "schema_version": "sf.dataset_training_export.claim_evidence_sentinel.v0.1",
+        "dataset_id": "claim_evidence-sentinel-v0.1",
         "status": readiness_status,
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
         "generated_at": now_utc(),
-        "curriculum": "LogosOne",
+        "curriculum": "PairedCurriculum",
         "training_target": "claim_evidence_alignment",
         "training_labels": list(SENTINEL_TRAINING_LABELS),
-        "sources": {"primary": "factory_dojo_internal", "historical_candidate_unlabeled": historical_candidate_unlabeled},
-        "rows_seen": len(dojo_rows),
+        "sources": {"primary": "curated_dataset_internal", "historical_candidate_unlabeled": historical_candidate_unlabeled},
+        "rows_seen": len(dataset_rows),
         "train_count": len(sft_train),
         "heldout_count": len(heldout_eval),
         "label_distribution": label_counts,
@@ -384,7 +372,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         "heldout_unsupported_labels": heldout_unsupported_labels,
         "broad_label_readiness": broad_label_readiness,
         "rights_distribution": rights_counts,
-        "logosone_curriculum": curriculum_summary,
+        "paired_curriculum_curriculum": curriculum_summary,
         "creator_provenance": provenance_summary,
         "source_commit": commit,
         "excluded": excluded,
@@ -394,7 +382,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         "lineage_row_count": len(lineage_rows),
         "readback_matches": readback_matches,
         "train_heldout_overlap": not no_overlap,
-        "all_internal_only": all_internal_only,
+        "all_restricted_use": all_restricted_use,
         "external_release_allowed": False,
         "commercial_sale_allowed": False,
         "model_training_performed": False,
@@ -403,36 +391,36 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
 
     write_json(out_dir / "provenance_manifest.json", {
         "generated_at": now_utc(),
-        "dataset_id": "cerberus-sentinel-v0.1",
+        "dataset_id": "claim_evidence-sentinel-v0.1",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
-        "note": "Creator provenance is internal-only; mandatory for curriculum trust, review authority, and producer-quality measurement. Unknown values are explicit; model_name is never inferred from an agent name; human identity is internal-pseudonymous.",
+        "note": "Creator provenance is restricted-use; mandatory for curriculum trust, review authority, and producer-quality measurement. Unknown values are explicit; model_name is never inferred from an agent name; human identity is internal-pseudonymous.",
         "source_commit": commit,
-        "all_internal_only": all_internal_only,
+        "all_restricted_use": all_restricted_use,
         **provenance_summary,
         "model_training_performed": False,
     })
 
     write_json(out_dir / "curriculum_manifest.json", {
-        "schema_version": "sf.logosone_curriculum_manifest.v0.1",
+        "schema_version": "sf.paired_curriculum_curriculum_manifest.v0.1",
         "generated_at": now_utc(),
-        "dataset_id": "cerberus-sentinel-v0.1",
+        "dataset_id": "claim_evidence-sentinel-v0.1",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
-        "note": "LogosOne is internal/proprietary curriculum metadata; never externalized.",
-        "rows_seen": len(dojo_rows),
+        "note": "PairedCurriculum metadata is included for evaluation and auditing.",
+        "rows_seen": len(dataset_rows),
         "excluded": excluded,
-        "all_internal_only": all_internal_only,
+        "all_restricted_use": all_restricted_use,
         "creator_provenance": provenance_summary,
         **curriculum_summary,
     })
 
     rights_report = {
-        "schema_version": "sf.dojo_training_export.rights.v0.1",
+        "schema_version": "sf.dataset_training_export.rights.v0.1",
         "generated_at": now_utc(),
-        "curriculum": "LogosOne",
+        "curriculum": "PairedCurriculum",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
@@ -441,15 +429,15 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         "export_allowed_rows": export_allowed_seen,
         "commercial_sale_rows": sale_allowed_seen,
         "quarantine_excluded": excluded["quarantine"],
-        "all_internal_only": all_internal_only,
+        "all_restricted_use": all_restricted_use,
         "creator_provenance": provenance_summary,
     }
     write_json(out_dir / "rights_report.json", rights_report)
 
     split_manifest = {
-        "schema_version": "sf.dojo_training_export.split.v0.1",
+        "schema_version": "sf.dataset_training_export.split.v0.1",
         "generated_at": now_utc(),
-        "curriculum": "LogosOne",
+        "curriculum": "PairedCurriculum",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
@@ -483,7 +471,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         "train_unsupported_labels": train_unsupported_labels,
         "heldout_unsupported_labels": heldout_unsupported_labels,
         "broad_label_readiness": broad_label_readiness,
-        "rows_with_logosone": logosone_count,
+        "rows_with_paired_curriculum": paired_curriculum_count,
         "sign_distribution": sign_dist,
         "grade_distribution": grade_dist,
         "paired_rows": paired_rows,
@@ -491,7 +479,7 @@ def export_cerberus_sentinel_training(root: Path | str = AGENTREADY_HOME, heldou
         "excluded": excluded,
         "readback_matches": readback_matches,
         "train_heldout_no_overlap": no_overlap,
-        "all_internal_only": all_internal_only,
+        "all_restricted_use": all_restricted_use,
         "source_commit": commit,
         "provenance_summary": provenance_summary,
         "model_training_performed": False,

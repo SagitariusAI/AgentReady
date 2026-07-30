@@ -1,15 +1,19 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from agent_data_foundry_test_helpers import (
-    _DOJO_DIR,
-    _write_dojo_gold,
+    _DATASET_DIR,
+    _write_dataset_gold,
 )
 
 from agent_data_foundry import (
-    build_inhouse_dojo,
+    build_curated_dataset,
     data_rights_gate,
     default_data_need,
     default_data_rights,
@@ -41,7 +45,7 @@ def test_valid_data_need_passes() -> None:
         primary_need="CLAIM_EVIDENCE_ALIGNMENT",
         technical_value="HIGH",
         value_reason="Unsupported completion claim with blockers present.",
-        secondary_needs=["CERBERUS_SENTINEL_TRAINING"],
+        secondary_needs=["CLAIM_EVIDENCE_SENTINEL_TRAINING"],
         future_model_should_learn=["Completion requires evidence."],
         recommended_internal_use=["internal_eval", "sentinel_training"],
     )
@@ -62,13 +66,13 @@ def test_valid_data_rights_passes() -> None:
     assert validate_data_rights(default_data_rights()) == []
 
 
-def test_unknown_or_mixed_record_defaults_to_internal_only() -> None:
+def test_unknown_or_mixed_record_defaults_to_restricted_use() -> None:
     rights = infer_data_rights_from_record({"incident_type": "CLAIM_WITHOUT_EVIDENCE"})
     assert rights["grade"] == "A_INTERNAL_RESEARCH_ONLY"
     assert rights["export_allowed"] is False
     assert rights["commercial_sale_allowed"] is False
     assert rights["requires_legal_review"] is True
-    assert rights["requires_founder_release"] is True
+    assert rights["requires_owner_release"] is True
     assert validate_data_rights(rights) == []
 
 
@@ -131,46 +135,46 @@ def test_incident_to_need_mapping_and_unknown_fallback() -> None:
     assert infer_data_need_from_incident({"incident_type": "MISDIRECTED_VERIFICATION"})["technical_value"] == "CRITICAL"
     assert infer_data_need_from_incident({"incident_type": "SUPPORTED_CLAIM"})["primary_need"] == "CLAIM_EVIDENCE_ALIGNMENT"
     unknown = infer_data_need_from_incident({"incident_type": "SOMETHING_NEW"})
-    assert unknown["primary_need"] == "FACTORY_DOJO_INTERNAL"
+    assert unknown["primary_need"] == "FACTORY_DATASET_INTERNAL"
     assert unknown["technical_value"] == "MEDIUM"
     assert validate_data_need(unknown) == []
 
 
 def test_validate_data_rights_blocks_inconsistent_commercial_sale() -> None:
-    # Commercial sale cannot be true while founder/legal review is still required.
+    # Commercial sale cannot be true while owner/legal review is still required.
     bad = default_data_rights(grade="D_EXTERNAL_TRAINING_CANDIDATE", commercial_sale_allowed=True)
     failures = validate_data_rights(bad)
     assert any("commercial_sale_allowed" in f for f in failures)
 
 
-def test_internal_research_passes_for_dojo_rows(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
+def test_internal_research_passes_for_dataset_rows(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
     report = data_rights_gate(tmp_path, intended_use="internal_research")
     assert report["status"] == "PASS"
     assert report["rows_failed"] == 0
     assert report["export_allowed_rows"] == 0
 
 
-def test_external_eval_rejects_dojo_because_export_not_cleared(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
+def test_external_eval_rejects_dataset_because_export_not_cleared(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
     report = data_rights_gate(tmp_path, intended_use="external_eval")
-    # Dojo rows are grade C but export_allowed=false -> candidate, not cleared.
+    # Dataset rows are grade C but export_allowed=false -> candidate, not cleared.
     assert report["status"] == "FAIL"
     assert "export_allowed_false" in report["failure_reasons"]
 
 
 def test_external_eval_passes_only_with_export_and_clearance(tmp_path: Path) -> None:
     good = _row("C_EXTERNAL_EVAL_CANDIDATE", export_allowed=True, external_eval_allowed=True,
-                provider_neutral=True, requires_legal_review=False, requires_founder_release=False)
+                provider_neutral=True, requires_legal_review=False, requires_owner_release=False)
     report = data_rights_gate(tmp_path, dataset_path=_graded_dataset(tmp_path, [good]), intended_use="external_eval")
     assert report["status"] == "PASS"
 
 
 def test_external_training_rejects_c_rows_even_if_export_true(tmp_path: Path) -> None:
     c_row = _row("C_EXTERNAL_EVAL_CANDIDATE", export_allowed=True, external_eval_allowed=True,
-                 provider_neutral=True, requires_legal_review=False, requires_founder_release=False)
+                 provider_neutral=True, requires_legal_review=False, requires_owner_release=False)
     report = data_rights_gate(tmp_path, dataset_path=_graded_dataset(tmp_path, [c_row]), intended_use="external_training")
     assert report["status"] == "FAIL"
     assert any("not_eligible_for_external_training" in k for k in report["failure_reasons"])
@@ -179,12 +183,12 @@ def test_external_training_rejects_c_rows_even_if_export_true(tmp_path: Path) ->
 def test_external_training_accepts_only_d_with_license_and_clearance(tmp_path: Path) -> None:
     d_row = _row("D_EXTERNAL_TRAINING_CANDIDATE", export_allowed=True, external_training_allowed=True,
                  external_eval_allowed=True, provider_neutral=True, license_evidence_path="data/licenses/apache.txt",
-                 requires_legal_review=False, requires_founder_release=False)
+                 requires_legal_review=False, requires_owner_release=False)
     ok = data_rights_gate(tmp_path, dataset_path=_graded_dataset(tmp_path, [d_row]), intended_use="external_training")
     assert ok["status"] == "PASS"
     # Same D row without license evidence fails.
     no_license = _row("D_EXTERNAL_TRAINING_CANDIDATE", export_allowed=True, external_training_allowed=True,
-                      provider_neutral=True, requires_legal_review=False, requires_founder_release=False)
+                      provider_neutral=True, requires_legal_review=False, requires_owner_release=False)
     bad = data_rights_gate(tmp_path, dataset_path=_graded_dataset(tmp_path, [no_license]), intended_use="external_training")
     assert bad["status"] == "FAIL"
     assert "missing_license_evidence" in bad["failure_reasons"]
@@ -192,7 +196,7 @@ def test_external_training_accepts_only_d_with_license_and_clearance(tmp_path: P
 
 def test_commercial_sale_rejects_rows_without_clearance(tmp_path: Path) -> None:
     pending = _row("D_EXTERNAL_TRAINING_CANDIDATE", export_allowed=True, commercial_sale_allowed=True,
-                   requires_legal_review=True, requires_founder_release=True)
+                   requires_legal_review=True, requires_owner_release=True)
     report = data_rights_gate(tmp_path, dataset_path=_graded_dataset(tmp_path, [pending]), intended_use="commercial_sale")
     assert report["status"] == "FAIL"
     assert any("pending" in k for k in report["failure_reasons"])
@@ -228,9 +232,9 @@ def test_missing_data_need_fails(tmp_path: Path) -> None:
 
 
 def test_cli_data_rights_gate_action(tmp_path: Path, capsys) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
     exit_code = main(["--action", "data-rights-gate", "--root", str(tmp_path), "--intended-use", "internal_research"])
     assert exit_code == 0
     assert "data rights gate" in capsys.readouterr().out
-    assert (tmp_path / _DOJO_DIR / "data_rights_gate_report.json").exists()
+    assert (tmp_path / _DATASET_DIR / "data_rights_gate_report.json").exists()

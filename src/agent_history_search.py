@@ -1,11 +1,8 @@
-"""History search -- Python port of `bin/agent-history-search.ps1` (PS->Python Phase 7).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Searches the shared AgentReady coordination state (tasks, events, handoffs, reviews, ...) for a query, via
-ripgrep when available (excluding binaries) or a stdlib fallback. Resolves the state root through the
-already-Python `agent_coordination` package (so the wrapper no longer dot-sources agent-coordination-lib.ps1).
-Behavior preserved: the rg flags/excludes, the `No AgentReady history matches for: <query>` message, and the
-exit code (0).
-"""
+"""Public support for agent history search."""
 from __future__ import annotations
 
 import argparse

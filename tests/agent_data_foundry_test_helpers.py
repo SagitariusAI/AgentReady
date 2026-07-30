@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared builders/helpers/constants for the split agent_data_foundry test suite (verbatim move).
 
 Anything used by more than one focused test module (or by a shared helper) lives here so the
@@ -19,10 +23,10 @@ _CLAIM_TYPE_BY_LABEL = {
 }
 
 
-_RELEASE_DIR = Path("data") / "training-library" / "40_release_ready" / "cerberus-claim-evidence-eval-v0.1.0"
+_RELEASE_DIR = Path("data") / "training-library" / "40_release_ready" / "claim_evidence-claim-evidence-eval-v0.1.0"
 
 
-_DOJO_DIR = Path("data") / "training-library" / "30_curated" / "internal" / "factory-dojo"
+_DATASET_DIR = Path("data") / "training-library" / "30_curated" / "internal" / "factory-dataset"
 
 
 _SAMPLE_DIFF = """diff --git a/tests/test_x.py b/tests/test_x.py
@@ -163,7 +167,7 @@ def _write_split_corpus(tmp_path: Path) -> None:
     gold.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
 
-def _write_dojo_gold(tmp_path: Path) -> Path:
+def _write_dataset_gold(tmp_path: Path) -> Path:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     rows = [

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic tool routing for the public AgentReady command surface."""
 from __future__ import annotations
 

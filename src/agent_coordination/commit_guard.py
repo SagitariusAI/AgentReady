@@ -1,21 +1,8 @@
-"""Commit-guard decision — Python port of `bin/agent-commit-guard.ps1`.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Blocks a commit whose staged paths are not covered by an active, intent-logged claim by the committing
-agent. This is the enforcement that makes the Factory's coordination boundaries un-bypassable.
-
-CRITICAL invariants:
-- **Fail-closed enforcement**: an internal error or unreadable staged state BLOCKS the commit. An
-  explicitly ungoverned repository and a verified empty staged set remain outside the guard.
-- **Override** (L58-70): `$env:AGENTREADY_COMMIT_OVERRIDE='<reason>'` allows the commit, loudly + logged
-  to a `commit_guard_override` event — visible, never silent.
-- **Agent match + non-empty summary** (L79-80): a claim only counts if its summary is non-empty and (when
-  the committing agent is declared) it belongs to that agent.
-- **Protected-intent** (L83-87): a covering claim on a doctrine/gate/test/manifest path still BLOCKS
-  unless the task title/summary names that kind of work.
-
-Until Phase 1F this is shadow-only (PowerShell stays authoritative). `evaluate()` is the verdict;
-`main()` is the CLI that `bin/agent-commit-guard.ps1` will forward to after the flip.
-"""
+"""Commit-guard decision — Python port of `bin/agent-commit-guard.ps1`."""
 from __future__ import annotations
 
 import argparse
@@ -131,13 +118,13 @@ def render_block(
         "  - Logged intent: the claiming task needs a non-empty -Summary.",
         "  - Protected intent: doctrine, gate, test, and manifest paths require the task title/summary to "
         "say that kind of work explicitly.",
-        "  - Memory-first: new substantive tasks require graph-query plus Serena-read receipts, or an "
+        "  - Memory-first: new substantive tasks require graph-query plus semantic memory-read receipts, or an "
         "explicit no-relevant-memory receipt, before commit.",
         "",
         "Remedy - claim the lane first:",
         f"    agent-task-start -Title '<what>' -Agent <you> -Summary '<intent>' -Paths {','.join(uncovered)}",
         "",
-        "Founder override (logged + surfaced):",
+        "Owner override (logged + surfaced):",
         "    $env:AGENTREADY_COMMIT_OVERRIDE='<reason>'  (then commit; the bypass is recorded)",
     ]
     return "\n".join(lines)

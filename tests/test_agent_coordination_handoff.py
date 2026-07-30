@@ -1,23 +1,8 @@
-"""Coordination handoff behavior: lane release + handoff-document render (Python engine).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Two invariants of ``agent_coordination.cli`` task-handoff:
-
-1. Lane release -- a ``complete`` handoff is terminal: it moves the task to ``completed`` (excluded from
-   conflict detection) and drops its path locks, so a new claim on the same files needs no ``-Force``;
-   a ``wip``/``blocked`` handoff stays ``handoff`` and keeps the lock so the resuming agent's lane stays
-   protected.
-2. Handoff-document render -- the written ``handoffs/<stamp>-<id>.md`` carries the work author, the
-   operator, the interpreted evidence (separated from the report pointers, never the old no-summary
-   placeholder), and the task record stores the evidence as ``test_summary``.
-
-Phase 7g: this previously drove the PowerShell ``agent-coordination-lib.ps1`` (``Read-AgentTask`` /
-``Get-AgentPathConflicts`` / ``Get-AgentStateRoot``) end to end to prove the Python writes were PS-readable.
-With the lib retired, that cross-impl check moved to ``smoke/agent_coordination_parity_smoke.py`` (which
-restores the lib from git history); this file now exercises the Python engine directly -- faster, hermetic,
-and the permanent home for the behavioral contract (it also absorbs the render assertions from the retired
-``smoke/test-agent-task-handoff.ps1``). The store + adapter home are redirected under tmp so the chat /
-work-state shims no-op -- no live network, no external side effects.
-"""
+"""Coordination handoff behavior: lane release + handoff-document render (Python engine)."""
 from __future__ import annotations
 
 import json
@@ -27,7 +12,6 @@ from pathlib import Path
 import pytest
 
 import agent_runtime_paths
-from agent_coordination import chat as _chat
 from agent_coordination import cli
 from agent_coordination import paths as _paths
 
@@ -47,7 +31,6 @@ def repo(tmp_path, monkeypatch):
     workstate.parent.mkdir(parents=True)
     workstate.write_text("raise SystemExit(0)\n", encoding="utf-8")
     monkeypatch.setattr(cli, "AGENTREADY_HOME", home)
-    monkeypatch.setattr(_chat, "AGENTREADY_HOME", home)  # no matrix.json -> chat no-ops
     return work
 
 
@@ -73,9 +56,9 @@ def _start(repo: Path) -> str:
     ]) == 0
     assert cli.main([
         "task-memory", "--repo", str(repo), "--task-id", task_id, "--agent", "claude",
-        "--kind", "serena_read", "--store", "serena-factory",
+        "--kind", "memory_read", "--store", "shared-memory",
         "--memory-name", "global/factory-doctrine-and-protocols",
-        "--evidence", "Serena read completed before task action",
+        "--evidence", "memory read completed before task action",
     ]) == 0
     return task_id
 
@@ -129,7 +112,7 @@ def test_incomplete_handoff_keeps_lane(repo, status):
 
 
 def test_handoff_document_render(repo):
-    # Absorbs the retired smoke/test-agent-task-handoff.ps1 assertions: the handoff .md carries the work
+
     # author + operator + interpreted evidence (separated from report pointers, no no-summary placeholder),
     # and the task record stores the evidence as test_summary.
     task_id = _start(repo)

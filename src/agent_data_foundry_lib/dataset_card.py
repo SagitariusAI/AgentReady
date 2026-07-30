@@ -1,15 +1,19 @@
-"""Cerberus dataset-card and label-taxonomy report writers for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Emits the human- and machine-readable release documentation for the Cerberus claim-evidence
+"""ClaimEvidence dataset-card and label-taxonomy report writers for the Agent Data Foundry.
+
+Emits the human- and machine-readable release documentation for the ClaimEvidence claim-evidence
 corpus: the label taxonomy (`emit_label_taxonomy`), the provenance-disclosing dataset card
 (`emit_dataset_card`) and its provenance breakdown helper (`corpus_provenance_breakdown`), and
 the two release-gate checks that verify those artifacts exist with the required disclosure
 (`dataset_card_gate`, `label_taxonomy_gate`). The label taxonomy definitions
-(`CERBERUS_LABEL_TAXONOMY`) live here because only these writers consume them.
+(`CLAIM_EVIDENCE_LABEL_TAXONOMY`) live here because only these writers consume them.
 
 Clean leaf: imports `gold_corpus` (the Gold corpus path), `io_jsonl`, the `paths` foundation
-(home + release-root + report path), and `schemas` (`CERBERUS_PRODUCT_ID` + the shared
-`CERBERUS_REQUIRED_LABELS` minimums) — no back-import to agent_data_foundry. Dataset-card markdown
+(home + release-root + report path), and `schemas` (`CLAIM_EVIDENCE_PRODUCT_ID` + the shared
+`CLAIM_EVIDENCE_REQUIRED_LABELS` minimums) — no back-import to agent_data_foundry. Dataset-card markdown
 content, the label-taxonomy JSON, report schema strings, and the gate verdict/message strings are
 preserved byte-for-byte from the pre-split module.
 """
@@ -20,10 +24,10 @@ from typing import Any
 
 from agent_data_foundry_lib.gold_corpus import gold_jsonl_path
 from agent_data_foundry_lib.io_jsonl import as_dict, now_utc, read_json, read_jsonl, rel, write_json
-from agent_data_foundry_lib.paths import AGENTREADY_HOME, cerberus_release_root, report_data_foundry_path
-from agent_data_foundry_lib.schemas import CERBERUS_PRODUCT_ID, CERBERUS_REQUIRED_LABELS
+from agent_data_foundry_lib.paths import AGENTREADY_HOME, claim_evidence_release_root, report_data_foundry_path
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_PRODUCT_ID, CLAIM_EVIDENCE_REQUIRED_LABELS
 
-CERBERUS_LABEL_TAXONOMY = {
+CLAIM_EVIDENCE_LABEL_TAXONOMY = {
     "CLAIM_WITHOUT_EVIDENCE": {
         "definition": "A completion or closure claim made without sufficient gate and delivery evidence.",
         "gold_verdict": "BLOCK",
@@ -85,26 +89,26 @@ def corpus_provenance_breakdown(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"by_label": by_label, "by_controlled_family": by_controlled_family}
 
 
-def emit_label_taxonomy(root: Path | str = AGENTREADY_HOME, product_id: str = CERBERUS_PRODUCT_ID) -> dict[str, Any]:
+def emit_label_taxonomy(root: Path | str = AGENTREADY_HOME, product_id: str = CLAIM_EVIDENCE_PRODUCT_ID) -> dict[str, Any]:
     root = Path(root)
-    release_root = cerberus_release_root(root, product_id)
+    release_root = claim_evidence_release_root(root, product_id)
     release_root.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": "agentready.data_foundry.label_taxonomy.v1",
         "product_id": product_id,
         "generated_at": now_utc(),
-        "required_minimums": CERBERUS_REQUIRED_LABELS,
-        "labels": CERBERUS_LABEL_TAXONOMY,
+        "required_minimums": CLAIM_EVIDENCE_REQUIRED_LABELS,
+        "labels": CLAIM_EVIDENCE_LABEL_TAXONOMY,
     }
     path = release_root / "label_taxonomy.json"
     write_json(path, payload)
-    write_json(report_data_foundry_path(root, "cerberus-label-taxonomy-latest.json"), payload)
-    return {"path": rel(root, path), "labels": list(CERBERUS_LABEL_TAXONOMY)}
+    write_json(report_data_foundry_path(root, "claim_evidence-label-taxonomy-latest.json"), payload)
+    return {"path": rel(root, path), "labels": list(CLAIM_EVIDENCE_LABEL_TAXONOMY)}
 
 
-def emit_dataset_card(root: Path | str = AGENTREADY_HOME, product_id: str = CERBERUS_PRODUCT_ID) -> dict[str, Any]:
+def emit_dataset_card(root: Path | str = AGENTREADY_HOME, product_id: str = CLAIM_EVIDENCE_PRODUCT_ID) -> dict[str, Any]:
     root = Path(root)
-    release_root = cerberus_release_root(root, product_id)
+    release_root = claim_evidence_release_root(root, product_id)
     release_root.mkdir(parents=True, exist_ok=True)
     rows = read_jsonl(gold_jsonl_path(root))
     total = len(rows)
@@ -113,7 +117,7 @@ def emit_dataset_card(root: Path | str = AGENTREADY_HOME, product_id: str = CERB
     controlled_pct = round(100 * controlled / total, 1) if total else 0.0
     breakdown = corpus_provenance_breakdown(rows)
     label_lines = [
-        f"| {label} | {b['total']} | {b['natural']} | {b['controlled']} | {CERBERUS_LABEL_TAXONOMY.get(label, {}).get('class', 'unknown')} |"
+        f"| {label} | {b['total']} | {b['natural']} | {b['controlled']} | {CLAIM_EVIDENCE_LABEL_TAXONOMY.get(label, {}).get('class', 'unknown')} |"
         for label, b in sorted(breakdown["by_label"].items())
     ]
     family_lines = [
@@ -178,7 +182,7 @@ def emit_dataset_card(root: Path | str = AGENTREADY_HOME, product_id: str = CERB
         "controlled_pct": controlled_pct,
         "path": rel(root, path),
     }
-    write_json(report_data_foundry_path(root, "cerberus-dataset-card-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-dataset-card-latest.json"), report)
     return report
 
 
@@ -200,12 +204,12 @@ def label_taxonomy_gate(release_root: Path) -> tuple[bool, str, Any]:
     if not data:
         return (False, "Label taxonomy not emitted; run emit-label-taxonomy after label gates pass.", None)
     labels = as_dict(data.get("labels"))
-    missing = [label for label in CERBERUS_REQUIRED_LABELS if label not in labels]
+    missing = [label for label in CLAIM_EVIDENCE_REQUIRED_LABELS if label not in labels]
     if missing:
         return (False, "Label taxonomy does not declare every required label.", {"missing": missing})
     incomplete = [
         label
-        for label in CERBERUS_REQUIRED_LABELS
+        for label in CLAIM_EVIDENCE_REQUIRED_LABELS
         if not (labels.get(label, {}).get("definition") and labels.get(label, {}).get("gold_verdict"))
     ]
     if incomplete:

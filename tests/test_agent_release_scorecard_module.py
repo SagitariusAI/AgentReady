@@ -1,8 +1,8 @@
-"""Unit tests for the release-scorecard Python module (PS->Python Phase 4A). Fixture-based, no network.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-(The pre-existing tests/test_agent_release_scorecard.py drives the real PowerShell scorecard end-to-end
-for the product-boundary case; it stays as a free parity check once the wrapper is flipped in 4B.)
-"""
+"""Public support for test agent release scorecard module."""
 from __future__ import annotations
 
 import json
@@ -22,7 +22,7 @@ def test_count_array():
 
 
 def test_ps_truthy_empty_array_is_falsy():
-    # the PowerShell `$null -ne @()` quirk: empty array -> skip; object/non-empty -> process
+
     assert sc._ps_truthy(None) is False
     assert sc._ps_truthy([]) is False
     assert sc._ps_truthy([1]) is True

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -60,7 +64,7 @@ def test_jsonl_row_count_missing_file(tmp_path: Path) -> None:
 
 
 def test_reexported_from_agent_data_foundry() -> None:
-    # Phase A compat shim: the names still resolve from the top-level module,
+
     # and are the SAME objects as in the lib (no divergent copy).
     import agent_data_foundry as adf
 

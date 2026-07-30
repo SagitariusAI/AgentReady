@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Hermetic unit tests for agent_deterministic_toolbox.
 
 These tests monkeypatch the filesystem report root, the subprocess/shutil

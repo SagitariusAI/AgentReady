@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Unified public command surface for AgentReady."""
 from __future__ import annotations
 

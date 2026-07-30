@@ -1,57 +1,61 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
 from agent_data_foundry_lib.adjudication import (
-    commercial_safety_flags as commercial_safety_flags,  # re-export: row builders moved to controlled_cases (K2)
+    commercial_safety_flags as commercial_safety_flags,
 )
 from agent_data_foundry_lib.adjudication import (
     ensure_natural_provenance_fields as ensure_natural_provenance_fields,  # re-export (mining moved; tests assert adf.X)
 )
 from agent_data_foundry_lib.adjudication import (
-    gold_coordination_row as gold_coordination_row,  # re-export (harvest moved, Phase H-harvest)
+    gold_coordination_row as gold_coordination_row,
 )
 from agent_data_foundry_lib.adjudication import (
     receipt_gold_row as receipt_gold_row,  # re-export (mining moved; tests assert adf.X)
 )
 from agent_data_foundry_lib.adjudication import (
-    safe_segment as safe_segment,  # re-export (harvest moved, Phase H-harvest)
+    safe_segment as safe_segment,
 )
 from agent_data_foundry_lib.adjudication import (
-    silver_coordination_row as silver_coordination_row,  # re-export (harvest moved, Phase H-harvest)
+    silver_coordination_row as silver_coordination_row,
 )
 from agent_data_foundry_lib.adjudication import (
-    task_fingerprint as task_fingerprint,  # re-export (harvest moved, Phase H-harvest)
+    task_fingerprint as task_fingerprint,
 )
 from agent_data_foundry_lib.adjudication import (
-    task_source_id as task_source_id,  # re-export (harvest moved, Phase H-harvest)
+    task_source_id as task_source_id,
 )
-from agent_data_foundry_lib.cerberus_eval import (
-    CERBERUS_EVAL_SPLIT_SEED as CERBERUS_EVAL_SPLIT_SEED,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+from agent_data_foundry_lib.claim_evidence_eval import (
+    CLAIM_EVIDENCE_EVAL_SPLIT_SEED as CLAIM_EVIDENCE_EVAL_SPLIT_SEED,
 )
-from agent_data_foundry_lib.cerberus_eval import (
+from agent_data_foundry_lib.claim_evidence_eval import (
     baseline_predict as baseline_predict,  # re-export (test-imported via adf; no central caller)
 )
-from agent_data_foundry_lib.cerberus_eval import (
-    build_cerberus_eval_split,
-    cerberus_baseline_eval,
+from agent_data_foundry_lib.claim_evidence_eval import (
+    build_claim_evidence_eval_split,
+    claim_evidence_baseline_eval,
 )
-from agent_data_foundry_lib.cerberus_eval import (
-    cerberus_baseline_eval_gate as cerberus_baseline_eval_gate,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+from agent_data_foundry_lib.claim_evidence_eval import (
+    claim_evidence_baseline_eval_gate as claim_evidence_baseline_eval_gate,
 )
-from agent_data_foundry_lib.cerberus_eval import (
-    cerberus_eval_split_gate as cerberus_eval_split_gate,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+from agent_data_foundry_lib.claim_evidence_eval import (
+    claim_evidence_eval_split_gate as claim_evidence_eval_split_gate,
 )
-from agent_data_foundry_lib.cerberus_release import (
-    CERBERUS_RELEASE_ARTIFACTS as CERBERUS_RELEASE_ARTIFACTS,  # re-export (test-imported via adf)
+from agent_data_foundry_lib.claim_evidence_release import (
+    CLAIM_EVIDENCE_RELEASE_ARTIFACTS as CLAIM_EVIDENCE_RELEASE_ARTIFACTS,  # re-export (test-imported via adf)
 )
-from agent_data_foundry_lib.cerberus_release import (
-    build_cerberus_release_gate,
-    emit_cerberus_checksums,
+from agent_data_foundry_lib.claim_evidence_release import (
+    build_claim_evidence_release_gate,
+    emit_claim_evidence_checksums,
 )
-from agent_data_foundry_lib.cerberus_release import (
-    cerberus_checksums_gate as cerberus_checksums_gate,  # re-export (test-imported via adf; no central caller)
+from agent_data_foundry_lib.claim_evidence_release import (
+    claim_evidence_checksums_gate as claim_evidence_checksums_gate,  # re-export (test-imported via adf; no central caller)
 )
 from agent_data_foundry_lib.code_fitness import code_fitness_scan
 from agent_data_foundry_lib.controlled_cases import (
@@ -64,69 +68,68 @@ from agent_data_foundry_lib.controlled_cases import (
     validate_controlled_cases,
 )
 from agent_data_foundry_lib.controlled_cases import (
-    staged_controlled_case_rows as staged_controlled_case_rows,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    staged_controlled_case_rows as staged_controlled_case_rows,
 )
 from agent_data_foundry_lib.controlled_cases import (
     validate_controlled_case as validate_controlled_case,  # re-export (no central caller; CLI/test surface)
 )
+from agent_data_foundry_lib.curated_dataset import curated_dataset_root as curated_dataset_root
+from agent_data_foundry_lib.curated_dataset_build import (
+    SIGNAL_COVERAGE_FAMILIES as SIGNAL_COVERAGE_FAMILIES,  # re-export (test-imported via adf)
+)
+from agent_data_foundry_lib.curated_dataset_build import (
+    build_curated_dataset,
+    signal_coverage_report,
+    source_signal_safety_report,
+)
+from agent_data_foundry_lib.curated_dataset_build import (
+    build_human_correction_lineage as build_human_correction_lineage,  # re-export (test-imported)
+)
+from agent_data_foundry_lib.curated_dataset_build import (
+    build_model_route_cost as build_model_route_cost,  # re-export (test-imported)
+)
+from agent_data_foundry_lib.curated_dataset_build import (
+    build_signal_coverage as build_signal_coverage,  # re-export (test-imported)
+)
 from agent_data_foundry_lib.data_rights import data_rights_gate
 from agent_data_foundry_lib.dataset_card import (
-    dataset_card_gate as dataset_card_gate,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    dataset_card_gate as dataset_card_gate,
 )
 from agent_data_foundry_lib.dataset_card import (
     emit_dataset_card,
     emit_label_taxonomy,
 )
 from agent_data_foundry_lib.dataset_card import (
-    label_taxonomy_gate as label_taxonomy_gate,  # re-export (release cluster moved to cerberus_release, Phase P-release)
-)
-from agent_data_foundry_lib.dojo import inhouse_dojo_root as inhouse_dojo_root  # re-export (Phase O)
-from agent_data_foundry_lib.dojo_build import (
-    SIGNAL_COVERAGE_FAMILIES as SIGNAL_COVERAGE_FAMILIES,  # re-export (test-imported via adf)
-)
-from agent_data_foundry_lib.dojo_build import (
-    build_human_correction_lineage as build_human_correction_lineage,  # re-export (test-imported)
-)
-from agent_data_foundry_lib.dojo_build import (
-    build_inhouse_dojo,
-    signal_coverage_report,
-    source_signal_safety_report,
-)
-from agent_data_foundry_lib.dojo_build import (
-    build_model_route_cost as build_model_route_cost,  # re-export (test-imported)
-)
-from agent_data_foundry_lib.dojo_build import (
-    build_signal_coverage as build_signal_coverage,  # re-export (test-imported)
+    label_taxonomy_gate as label_taxonomy_gate,
 )
 
 # Re-exported for tests (imported from agent_data_foundry / asserted via adf.X); not
 # referenced directly here, so the redundant `as` alias marks them as intentional
 # re-exports for ruff F401. Most lost their only direct user when the Sentinel exporter
-# moved to training_export.py (Phase I1) / the eval gate moved to eval_gate.py (H1).
 from agent_data_foundry_lib.eval_gate import (
     baseline_sentinel_predict as baseline_sentinel_predict,
 )
 from agent_data_foundry_lib.eval_gate import (
-    cerberus_sentinel_baseline_eval,
-    cerberus_sentinel_eval_and_gate,
+    claim_evidence_sentinel_baseline_eval,
+    claim_evidence_sentinel_eval_and_gate,
 )
 from agent_data_foundry_lib.eval_gate import (
-    cerberus_sentinel_export_root as cerberus_sentinel_export_root,
+    claim_evidence_sentinel_export_root as claim_evidence_sentinel_export_root,
 )
 from agent_data_foundry_lib.gold_corpus import (
-    cerberus_case_schema as cerberus_case_schema,  # re-export only (no central caller)
+    claim_evidence_case_schema as claim_evidence_case_schema,  # re-export only (no central caller)
 )
 from agent_data_foundry_lib.gold_corpus import (
     existing_gold_fingerprints as existing_gold_fingerprints,  # re-export (mining moved; tests assert adf.X)
 )
 from agent_data_foundry_lib.gold_corpus import (
-    gold_jsonl_path as gold_jsonl_path,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    gold_jsonl_path as gold_jsonl_path,
 )
 from agent_data_foundry_lib.gold_corpus import (
-    validate_cerberus_case as validate_cerberus_case,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    validate_claim_evidence_case as validate_claim_evidence_case,
 )
 from agent_data_foundry_lib.gold_corpus import (
-    write_cerberus_schema as write_cerberus_schema,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    write_claim_evidence_schema as write_claim_evidence_schema,
 )
 from agent_data_foundry_lib.harvest import (
     build_data_foundry,
@@ -140,40 +143,31 @@ from agent_data_foundry_lib.historical_chat import (
     sample_historical_chats,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    append_jsonl as append_jsonl,  # re-export (harvest moved, Phase H-harvest)
+    append_jsonl as append_jsonl,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    append_jsonl_rows as append_jsonl_rows,  # re-export (harvest moved, Phase H-harvest)
+    append_jsonl_rows as append_jsonl_rows,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    jsonl_row_count as jsonl_row_count,  # re-export (harvest moved, Phase H-harvest)
+    jsonl_row_count as jsonl_row_count,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    now_utc as now_utc,  # re-export (harvest moved, Phase H-harvest)
+    now_utc as now_utc,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    read_json as read_json,  # re-export (harvest moved, Phase H-harvest)
+    read_json as read_json,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    read_jsonl as read_jsonl,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    read_jsonl as read_jsonl,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    rel as rel,  # re-export (harvest moved, Phase H-harvest)
+    rel as rel,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    sha256_file as sha256_file,  # re-export (harvest moved, Phase H-harvest)
+    sha256_file as sha256_file,
 )
 from agent_data_foundry_lib.io_jsonl import (
-    write_json as write_json,  # re-export (harvest moved, Phase H-harvest)
-)
-from agent_data_foundry_lib.logosone import (
-    _LOGOSONE_FAMILY as _LOGOSONE_FAMILY,
-)
-from agent_data_foundry_lib.logosone import (
-    _LOGOSONE_LABEL_MAP as _LOGOSONE_LABEL_MAP,
-)
-from agent_data_foundry_lib.logosone import (
-    build_logosone_block as build_logosone_block,
+    write_json as write_json,
 )
 from agent_data_foundry_lib.mining import (
     mine_misdirected_verification,
@@ -181,7 +175,16 @@ from agent_data_foundry_lib.mining import (
     mine_unsupported_promotions,
     mine_unsupported_promotions_v2,
     mine_vault_code_confusion,
-    upgrade_cerberus_gold_schema,
+    upgrade_claim_evidence_gold_schema,
+)
+from agent_data_foundry_lib.paired_curriculum import (
+    _PAIRED_CURRICULUM_FAMILY as _PAIRED_CURRICULUM_FAMILY,
+)
+from agent_data_foundry_lib.paired_curriculum import (
+    _PAIRED_CURRICULUM_LABEL_MAP as _PAIRED_CURRICULUM_LABEL_MAP,
+)
+from agent_data_foundry_lib.paired_curriculum import (
+    build_paired_curriculum_block as build_paired_curriculum_block,
 )
 from agent_data_foundry_lib.paths import (
     AGENTREADY_HOME,
@@ -190,16 +193,16 @@ from agent_data_foundry_lib.paths import (
     _current_git_commit as _current_git_commit,  # re-export (used by eval_gate/training_export + agent_report_submit compat)
 )
 from agent_data_foundry_lib.paths import (
-    cerberus_release_root as cerberus_release_root,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    claim_evidence_release_root as claim_evidence_release_root,
 )
 from agent_data_foundry_lib.paths import (
-    default_release_id as default_release_id,  # re-export (harvest moved, Phase H-harvest)
+    default_release_id as default_release_id,
 )
 from agent_data_foundry_lib.paths import (
-    report_data_foundry_path as report_data_foundry_path,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    report_data_foundry_path as report_data_foundry_path,
 )
 from agent_data_foundry_lib.paths import (
-    run_id_utc as run_id_utc,  # re-export (harvest moved, Phase H-harvest)
+    run_id_utc as run_id_utc,
 )
 
 # _classify_product_status is imported only by tests (from agent_data_foundry); the
@@ -221,21 +224,19 @@ from agent_data_foundry_lib.provenance import (
     summarize_provenance as summarize_provenance,
 )
 from agent_data_foundry_lib.receipts import (
-    PROMOTABLE_POLICIES as PROMOTABLE_POLICIES,  # re-export (harvest moved, Phase H-harvest)
+    PROMOTABLE_POLICIES as PROMOTABLE_POLICIES,
 )
 from agent_data_foundry_lib.receipts import (
-    discover_receipts as discover_receipts,  # re-export (harvest moved, Phase H-harvest)
+    discover_receipts as discover_receipts,
 )
 from agent_data_foundry_lib.rights import (
-    INCIDENT_NEED_MAP as INCIDENT_NEED_MAP,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    INCIDENT_NEED_MAP as INCIDENT_NEED_MAP,
 )
 from agent_data_foundry_lib.rights import (
     data_rights_gate_row as data_rights_gate_row,  # re-export (data_rights_gate moved; compat surface)
 )
 
 # default_data_need / default_data_rights are no longer referenced directly here
-# (their only callers, the historical-chat internal grade builders, moved to
-# agent_data_foundry_lib/historical_chat.py in Phase E1) but tests import them from
 # agent_data_foundry, so the redundant `as` alias marks them as intentional
 # re-exports for ruff F401.
 from agent_data_foundry_lib.rights import (
@@ -245,51 +246,50 @@ from agent_data_foundry_lib.rights import (
     default_data_rights as default_data_rights,
 )
 from agent_data_foundry_lib.rights import (
-    infer_data_need_from_incident as infer_data_need_from_incident,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    infer_data_need_from_incident as infer_data_need_from_incident,
 )
 from agent_data_foundry_lib.rights import (
-    infer_data_rights_from_record as infer_data_rights_from_record,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    infer_data_rights_from_record as infer_data_rights_from_record,
 )
 from agent_data_foundry_lib.rights import (
-    infer_model_origin_from_record as infer_model_origin_from_record,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    infer_model_origin_from_record as infer_model_origin_from_record,
 )
 from agent_data_foundry_lib.rights import (
-    quarantine_data_rights_for_signal as quarantine_data_rights_for_signal,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    quarantine_data_rights_for_signal as quarantine_data_rights_for_signal,
 )
 from agent_data_foundry_lib.rights import (
-    validate_data_need as validate_data_need,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    validate_data_need as validate_data_need,
 )
 from agent_data_foundry_lib.rights import (
-    validate_data_rights as validate_data_rights,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    validate_data_rights as validate_data_rights,
 )
 from agent_data_foundry_lib.safety_scan import (
     _scan_source_signal_value as _scan_source_signal_value,
 )
-from agent_data_foundry_lib.safety_scan import scan_source_signals as scan_source_signals  # re-export (Phase O)
+from agent_data_foundry_lib.safety_scan import scan_source_signals as scan_source_signals
 from agent_data_foundry_lib.schemas import (
-    CERBERUS_PRODUCT_ID as CERBERUS_PRODUCT_ID,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    CLAIM_EVIDENCE_PRODUCT_ID as CLAIM_EVIDENCE_PRODUCT_ID,
 )
 from agent_data_foundry_lib.schemas import (
-    CERBERUS_REQUIRED_LABELS as CERBERUS_REQUIRED_LABELS,  # re-export (release cluster moved to cerberus_release, Phase P-release)
+    CLAIM_EVIDENCE_REQUIRED_LABELS as CLAIM_EVIDENCE_REQUIRED_LABELS,
 )
 from agent_data_foundry_lib.schemas import (
-    CERBERUS_SCHEMA_VERSION as CERBERUS_SCHEMA_VERSION,  # re-export (mining moved; widely imported via adf)
+    CLAIM_EVIDENCE_SCHEMA_VERSION as CLAIM_EVIDENCE_SCHEMA_VERSION,  # re-export (mining moved; widely imported via adf)
 )
 from agent_data_foundry_lib.schemas import (
     SENTINEL_TRAINING_LABELS as SENTINEL_TRAINING_LABELS,
 )
 from agent_data_foundry_lib.source_signals import (
-    build_diff_test_integrity as build_diff_test_integrity,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    build_diff_test_integrity as build_diff_test_integrity,
 )
 from agent_data_foundry_lib.source_signals import (
-    build_tool_call_trajectory as build_tool_call_trajectory,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    build_tool_call_trajectory as build_tool_call_trajectory,
 )
 
 # The following are re-exported for tests and agent_report_submit.py (which import
 # them from agent_data_foundry); they are not referenced directly here, so the
 # redundant `as` alias marks them as intentional re-exports for ruff F401.
 # (harvest_source_signals lost its only direct user here when the gold-row builders
-# moved to adjudication.py in Phase K1; it still imports it from source_signals.)
 from agent_data_foundry_lib.source_signals import (
     derive_assertion_delta as derive_assertion_delta,
 )
@@ -309,167 +309,166 @@ from agent_data_foundry_lib.source_signals import (
     normalize_git_file_status as normalize_git_file_status,
 )
 from agent_data_foundry_lib.source_signals import (
-    strip_diff_text_from_row as strip_diff_text_from_row,  # re-export (dojo cluster moved to dojo_build, Phase O)
+    strip_diff_text_from_row as strip_diff_text_from_row,
 )
-from agent_data_foundry_lib.training_export import export_cerberus_sentinel_training
+from agent_data_foundry_lib.training_export import export_claim_evidence_sentinel_training
 
-# AGENTREADY_HOME moved to agent_data_foundry_lib/paths.py (Phase N) and re-imported above.
-# BDXL_PAYLOAD_BUDGET_BYTES + EXPORT_FOLDERS + COORDINATION_HARVEST_SCHEMA +
-# COORDINATION_ELIGIBLE_STATUSES moved to agent_data_foundry_lib/harvest.py (Phase H-harvest)
+# ARCHIVE_PAYLOAD_BUDGET_BYTES + EXPORT_FOLDERS + COORDINATION_HARVEST_SCHEMA +
+
 # and re-imported above.
-# CERBERUS_PRODUCT_ID / CERBERUS_SCHEMA_VERSION moved to
-# agent_data_foundry_lib/schemas.py (Phase B4a, shared cross-subsystem identity)
+
+
 # and re-imported below. The coordination-harvest / product-state / code-fitness
 # schema strings stay here until their own domain leaf is extracted.
-# CERBERUS_REQUIRED_LABELS moved to agent_data_foundry_lib/schemas.py (Phase Q) and re-imported above.
 
-# CONTROLLED_CASE_FAMILIES moved to agent_data_foundry_lib/controlled_cases.py (Phase K2)
+
+
 # and re-imported below.
 
 # Data Rights / Needs grading layer (DATA_RIGHTS_AND_NEEDS_GRADING_DOCTRINE.md).
 # data_need (technical value) and data_rights (export eligibility) are orthogonal:
 # commercial eligibility is never inferred from technical value.
 # DATA_NEED_PRIMARY_VALUES, TECHNICAL_VALUE_VALUES, DATA_RIGHTS_GRADES, and
-# INCIDENT_NEED_MAP moved to agent_data_foundry_lib/rights.py (Phase B3); they are
+
 # only referenced by the moved rights helpers. INCIDENT_NEED_MAP is re-imported
 # below for the staying signal-coverage helper. DATASET_INTENDED_USES + data_rights_gate
-# moved to agent_data_foundry_lib/data_rights.py (Phase P-rights); data_rights_gate is
+
 # re-imported above.
 
-# INCIDENT_NEED_MAP moved to agent_data_foundry_lib/rights.py (Phase B3);
+
 # re-imported below for the signal-coverage helper.
 
-# Factory Signal Coverage prototype (v0.1). Each internal Dojo row carries a
+# Factory Signal Coverage prototype (v0.1). Each internal Dataset row carries a
 # signal_coverage block describing which developer-skill signal families are
 # present / partial / missing. This is a coverage prototype, NOT full
 # instrumentation -- absent signals are marked missing, never fabricated.
-# SIGNAL_COVERAGE_FAMILIES + SIGNAL_COVERAGE_FAMILY_FIELDS moved to
-# agent_data_foundry_lib/dojo_build.py (Phase O) and re-imported above.
 
-# PROMOTABLE_POLICIES moved to agent_data_foundry_lib/receipts.py (Phase M) and re-imported above.
+
+
+
 
 
 # now_utc, rel, sha256_file, _sha256_text, read_json, write_json, _jsonl_dumps,
 # jsonl_row_count, append_jsonl_rows, read_jsonl, read_json_from_line, append_jsonl
-# moved to agent_data_foundry_lib.io_jsonl (Phase A) and re-exported via the import
+
 # at the top of this module.
 
 
-# run_id_utc + default_release_id moved to agent_data_foundry_lib/paths.py (Phase N) and re-imported above.
 
 
-# discover_receipts moved to agent_data_foundry_lib/receipts.py (Phase M) and re-imported above.
 
 
-# Receipt-export row builders (rejection_reasons, metadata, evidence_text, export_row) moved to
-# agent_data_foundry_lib/harvest.py (Phase H-harvest) and re-imported above.
+
+
+
+
 
 
 # safe_segment, task_source_id, task_fingerprint, task_evidence_profile, task_verdict,
 # silver_coordination_row, claim_evidence_alignment, commercial_safety_flags, and
-# natural_provenance_fields moved to agent_data_foundry_lib/adjudication.py (Phase K1)
+
 # and re-imported above (the self-contained adjudication leaf).
 
 
-# controlled_provenance_fields moved to agent_data_foundry_lib/controlled_cases.py (Phase K2)
+
 # and re-imported below.
 
 
-# ensure_natural_provenance_fields moved to agent_data_foundry_lib/adjudication.py
-# (Phase K1) and re-imported above.
 
 
-# gold_jsonl_path moved to agent_data_foundry_lib/gold_corpus.py (Phase L1) and re-imported above.
 
 
-# report_data_foundry_path moved to agent_data_foundry_lib/paths.py (Phase N) and re-imported above.
 
 
-# existing_gold_fingerprints moved to agent_data_foundry_lib/gold_corpus.py (Phase L1) and re-imported above.
+
+
+
+
+
 
 
 # The receipt_* adjudication helpers, receipt_gold_row, gold_output, state_transition,
 # HUMAN_CORRECTION_CARRY_FIELDS, carry_human_correction_fields, and gold_coordination_row
-# moved to agent_data_foundry_lib/adjudication.py (Phase K1) and re-imported above. The
+
 # whole cluster is self-contained (io_jsonl/schemas/source_signals + stdlib only); no
 # central back-import. Schema strings, labels, verdicts, and defaults are unchanged.
 
 
-# Harvest ledger / checksums / report writers moved to agent_data_foundry_lib/harvest.py
-# (Phase H-harvest) and re-imported above.
 
 
-# cerberus_case_schema + write_cerberus_schema + validate_cerberus_case moved to
-# agent_data_foundry_lib/gold_corpus.py (Phase L1) and re-imported above. The Cerberus case
+
+
+
+
 # schema, schema-version gate, and validation failure tokens are unchanged.
 
 
-# gate_item moved to agent_data_foundry_lib/cerberus_release.py (Phase P-release) and re-imported above.
+
 
 
 # Controlled-case family subtype registries (VAULT_CODE_CONFUSION / UNSUPPORTED_PROMOTION /
-# MISDIRECTED_VERIFICATION / COMPLETION_BY_DEFERRAL / SUPPORTED_CLAIM _SUBTYPES) moved to
-# agent_data_foundry_lib/controlled_cases.py (Phase K2) and re-imported below.
+
+
 
 
 # Controlled-case path helpers (controlled_cases_parent_root / controlled_case_family_slug /
-# controlled_cases_root / controlled_case_fingerprint) moved to
-# agent_data_foundry_lib/controlled_cases.py (Phase K2) and re-imported below.
+
+
 
 
 # Controlled-case Gold row builders (vault_code_confusion / unsupported_promotion /
-# misdirected_verification / completion_by_deferral / supported_claim _controlled_row) moved to
-# agent_data_foundry_lib/controlled_cases.py (Phase K2) and re-imported below.
+
+
 
 
 # Controlled-case orchestration (the five generate_*_controlled_cases CLI actions,
-# validate_controlled_case / validate_controlled_cases / promote_controlled_cases) moved to
-# agent_data_foundry_lib/controlled_cases.py (Phase L2) and re-imported above.
 
 
-# Canonical Cerberus label taxonomy. The release gate and the emitted
+
+
+# Canonical ClaimEvidence label taxonomy. The release gate and the emitted
 # label_taxonomy.json both read from this single source of truth.
-# CERBERUS_LABEL_TAXONOMY moved to agent_data_foundry_lib/dataset_card.py (Phase Q) and re-imported above.
 
 
-# cerberus_release_root moved to agent_data_foundry_lib/paths.py (Phase N) and re-imported above.
+
+
 
 
 # Dataset-card / label-taxonomy report writers (corpus_provenance_breakdown, emit_label_taxonomy,
-# emit_dataset_card, dataset_card_gate, label_taxonomy_gate) moved to
-# agent_data_foundry_lib/dataset_card.py (Phase Q) and re-imported above.
 
 
-# Cerberus claim-evidence eval cluster (CERBERUS_EVAL_SPLIT_SEED / CERBERUS_HELDOUT_FRACTION,
-# build_cerberus_eval_split, cerberus_eval_split_gate, baseline_predict, cerberus_baseline_eval,
-# cerberus_baseline_eval_gate + helpers) moved to agent_data_foundry_lib/cerberus_eval.py
-# (Phase P-eval) and re-imported above.
+
+
+# ClaimEvidence claim-evidence eval cluster (CLAIM_EVIDENCE_EVAL_SPLIT_SEED / CLAIM_EVIDENCE_HELDOUT_FRACTION,
+# build_claim_evidence_eval_split, claim_evidence_eval_split_gate, baseline_predict, claim_evidence_baseline_eval,
+
+
 
 
 # Artifacts sealed by checksums. Deliberately excludes the release gate report
 # (regenerated each gate run) and the Gold corpus (grows via the event runner),
 # so the seal stays stable and never hashes itself into a circular pretzel.
-# CERBERUS_RELEASE_ARTIFACTS + cerberus_checksums_gate + emit_cerberus_checksums moved to
-# agent_data_foundry_lib/cerberus_release.py (Phase P-release) and re-imported above.
+
+
 
 
 # default_data_need, default_data_rights, infer_data_need_from_incident,
 # infer_data_rights_from_record, validate_data_need, validate_data_rights, and
-# infer_model_origin_from_record moved to agent_data_foundry_lib/rights.py (Phase
+
 # B3) and re-imported below. Behavior, grades, and conservative defaults unchanged.
 
 
 # Signal-coverage helpers, human-correction-lineage / model-route-cost builders,
-# build_inhouse_dojo, signal_coverage_report, and source_signal_safety_report moved to
-# agent_data_foundry_lib/dojo_build.py (Phase O) and re-imported above.
 
 
-# Historical ChatGPT import / pilot sampler subsystem moved to
-# agent_data_foundry_lib/historical_chat.py (Phase E1) and re-imported below. The
+
+
+
+
 # import (import_historical_chats), pilot sampler (sample_historical_chats),
 # historical_chats_root, and their private helpers + STRONG_KEYWORD_DEFAULTS are a
 # near-leaf: the module imports only io_jsonl / safety_scan / rights + stdlib, never
-# back from here, so there is no import cycle. Internal-only grading, hashed IDs,
+# back from here, so there is no import cycle. Restricted-use grading, hashed IDs,
 # redaction/quarantine (severe secret drops segment text), the U+2028/U+2029 JSONL
 # readback, word-boundary keyword matching, strong/weak scoring, every output file
 # (historical_chat_* + pilot_*) and schema string (sf.historical_chat_*.v0.1) are
@@ -477,49 +476,48 @@ from agent_data_foundry_lib.training_export import export_cerberus_sentinel_trai
 # re-imported functions.
 
 
-# SENTINEL_TRAINING_LABELS moved to agent_data_foundry_lib/schemas.py (Phase H1,
+
 # shared by the training exporter + the Sentinel eval) and re-imported above.
 
 # SENTINEL_SYSTEM_PROMPT / _SENTINEL_RISK and the sentinel build helpers
 # (_sentinel_verdict, _sentinel_input_text, _sentinel_target, _sentinel_heldout)
-# moved to agent_data_foundry_lib/training_export.py (Phase I1) with the exporter.
 
 
-# cerberus_sentinel_export_root moved to agent_data_foundry_lib/eval_gate.py (Phase
+
+
 # H1, the sentinel dataset's eval home) and re-imported above; the training exporter
 # below + tests use the re-import. Path string unchanged.
 
 
-# LogosOne is an INTERNAL / PROPRIETARY curriculum architecture (signed pairs,
-# anchors, grade bands, workflow spines, insufficiency repair). The envelope below
-# is curriculum metadata only; it is internal-only and never externalized.
+# PairedCurriculum records signed pairs, anchors, grade bands, workflow spines,
+# and insufficiency-repair metadata for auditable dataset curation.
 # label -> (sign, anchors)
-# _LOGOSONE_* maps, _logosone_grade, and build_logosone_block moved to
-# agent_data_foundry_lib.logosone (Phase B1) and re-exported via the import at the
+
+
 # top of this module.
 
 
 # Creator Provenance Envelope v0.1: the constants (CREATOR_PROVENANCE_SCHEMA,
 # REVIEW_PROVENANCE_SCHEMA, FACTORY_CREATOR_DISPLAY, FACTORY_PROVIDER, _PROV_STAGE_KEYS),
 # _prov_stage, _human_correction_signal, _model_signal, build_creator_provenance_envelope,
-# and summarize_provenance moved to agent_data_foundry_lib.provenance (Phase B2) and are
+
 # re-exported via the import at the top of this module. _current_git_commit stays here --
 # it is shared by the exporter and the eval gate.
 
 
-# _current_git_commit moved to agent_data_foundry_lib/paths.py (Phase N) and re-imported above.
+
 # (eval_gate / training_export now import it directly from paths -- the lazy back-imports are gone.)
 
 
 # A false SAFE on these labels is the most dangerous Sentinel error: the agent
 # claimed a higher state than evidence supports and the Sentinel waved it through.
-# Cerberus Sentinel baseline eval + eval/promotion gate moved to
-# agent_data_foundry_lib/eval_gate.py (Phase H1) and re-imported above. The cluster
+
+
 # (CRITICAL_SENTINEL_LABELS, _VERDICT_DEFAULT_LABEL, _SENTINEL_SCHEMA,
 # STRICT_JSON_THRESHOLD, _parse_sentinel_input, baseline_sentinel_predict,
-# cerberus_sentinel_baseline_eval, _coerce_prediction, _predicted_sign,
-# cerberus_sentinel_eval_and_gate) is a near-leaf: it imports io_jsonl / logosone /
-# provenance / schemas + stdlib, with the founder-pinned _current_git_commit reached
+# claim_evidence_sentinel_baseline_eval, _coerce_prediction, _predicted_sign,
+# claim_evidence_sentinel_eval_and_gate) is a near-leaf: it imports io_jsonl / paired_curriculum /
+# provenance / schemas + stdlib, with the owner-pinned _current_git_commit reached
 # via a call-time lazy import (no module-level cycle). All metrics, output files,
 # schema strings, and the promotion gate (default NOT_PROMOTED; BASELINE_REQUIRED with
 # no baseline; PROMOTED only on beating the baseline with no false-SAFE / critical-
@@ -530,13 +528,13 @@ from agent_data_foundry_lib.training_export import export_cerberus_sentinel_trai
 # Deterministic, DRY-RUN / report-only. Maps a declared component registry to
 # EVIDENCE-DERIVED states -- a well-defined document is NOT proof of
 # implementation. Never upgrades past DEFINED without code/test/gate/artifact/
-# founder evidence; never assigns PRODUCTION_READY/RELEASE_CANDIDATE/sell-ready
+# owner evidence; never assigns PRODUCTION_READY/RELEASE_CANDIDATE/sell-ready
 # from prose; never writes under 40_release_ready; never makes a release or
 # commercial claim. The local model is meant to reason over these reports, not
 # raw repo chaos -- so the component list is explicit, and evidence is discovered.
 
-# Product State Scanner + Product Reality Brief subsystem moved to
-# agent_data_foundry_lib/product_state.py (Phase F1) and re-imported below. The
+
+
 # scanner (product_state_scan), the brief post (product_reality_brief_post), the
 # _PS_* constants, the _PRODUCT_STATE_COMPONENTS registry, and the _ps_* /
 # classify / scan / validate / brief helpers are a near-leaf: the module imports
@@ -549,37 +547,37 @@ from agent_data_foundry_lib.training_export import export_cerberus_sentinel_trai
 # mutates product state" are all unchanged. The CLI dispatch calls the re-imports.
 
 
-# Code Fitness Runner subsystem moved to agent_data_foundry_lib/code_fitness.py
-# (Phase G1) and re-imported below. The CODE_FITNESS_SCHEMA / _CF_* constants and the
+
+
 # _cf_* helpers + code_fitness_scan are a near-leaf: the module imports only io_jsonl
 # + stdlib (ast/re/subprocess/shutil/sys), never back from here, so no import cycle.
 # Dry-run/report-only, no code mutation, no 40_release_ready writes, git-ls-files
-# scanning, optional-scanner availability, BLOCK/WARN/INFO + LogosOne curriculum
+# scanning, optional-scanner availability, BLOCK/WARN/INFO + PairedCurriculum curriculum
 # fields, every report file, sf.code_fitness.v0.1, and the tracked 5-BLOCK baseline
 # are all unchanged. The CLI dispatch calls the re-imported code_fitness_scan.
 
 
-# data_rights_gate_row moved to agent_data_foundry_lib/rights.py (Phase B3) and
+
 # re-imported below. The per-row eligibility logic (grade = class, export_allowed
 # = clearance; candidate != cleared) is unchanged. The data_rights_gate dataset
 # wrapper below stays here and calls the re-imported data_rights_gate_row.
 
 
-# data_rights_gate moved to agent_data_foundry_lib/data_rights.py (Phase P-rights) and re-imported above.
 
 
-# build_cerberus_release_gate moved to agent_data_foundry_lib/cerberus_release.py
-# (Phase P-release) and re-imported above.
 
 
-# Cerberus label-mining cluster (receipt_*_candidate detectors, append_mined_gold_rows, the five
-# mine_*_controlled CLI actions, upgrade_cerberus_gold_schema) moved to
-# agent_data_foundry_lib/mining.py (Phase M) and re-imported above.
 
 
-# Coordination harvest + BDXL build pipeline (harvest_coordination_records, write_rejections,
-# copy_raw_receipt, file_record, write_bdxl_plan, write_manifest, write_report, build_data_foundry)
-# moved to agent_data_foundry_lib/harvest.py (Phase H-harvest) and re-imported above.
+
+# ClaimEvidence label-mining cluster (receipt_*_candidate detectors, append_mined_gold_rows, the five
+
+
+
+
+# Coordination harvest + ARCHIVE build pipeline (harvest_coordination_records, write_rejections,
+# copy_raw_receipt, file_record, write_archive_plan, write_manifest, write_report, build_data_foundry)
+
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -609,25 +607,25 @@ def main(argv: list[str] | None = None) -> int:
             "generate-supported-claim-controlled-cases",
             "emit-dataset-card",
             "emit-label-taxonomy",
-            "build-cerberus-eval-split",
-            "cerberus-baseline-eval",
-            "emit-cerberus-checksums",
-            "build-inhouse-dojo",
+            "build-claim_evidence-eval-split",
+            "claim_evidence-baseline-eval",
+            "emit-claim_evidence-checksums",
+            "build-curated-dataset",
             "data-rights-gate",
             "signal-coverage-report",
             "source-signal-safety-report",
             "import-historical-chats",
             "sample-historical-chats",
-            "export-cerberus-sentinel-training",
-            "cerberus-sentinel-baseline-eval",
-            "cerberus-sentinel-eval-gate",
+            "export-claim_evidence-sentinel-training",
+            "claim_evidence-sentinel-baseline-eval",
+            "claim_evidence-sentinel-eval-gate",
             "product-state-scan",
             "product-reality-brief",
             "code-fitness-scan",
             "validate-controlled-cases",
             "promote-controlled-cases",
-            "upgrade-cerberus-gold",
-            "cerberus-release-gate",
+            "upgrade-claim_evidence-gold",
+            "claim_evidence-release-gate",
         ),
         default="status",
     )
@@ -668,108 +666,108 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Manifest: {root / result['manifest_path']}")
         print(f"Gold rows: {result['summary']['gold_rows']} Captured: {result['summary']['captured']}")
         return 0
-    if args.action == "cerberus-release-gate":
-        result = build_cerberus_release_gate(root)
-        print(f"AgentReady Cerberus release gate: {result['status']}")
+    if args.action == "claim_evidence-release-gate":
+        result = build_claim_evidence_release_gate(root)
+        print(f"AgentReady ClaimEvidence release gate: {result['status']}")
         print(f"Report: {root / 'data' / 'training-library' / '40_release_ready' / result['product_id'] / 'release_gate_report.json'}")
         return 0 if result["status"] == "RELEASE_READY" else 2
     if args.action == "mine-supported-claims":
         result = mine_supported_claims(root, coordination_root=Path(args.coordination_root) if args.coordination_root else None)
-        print("AgentReady Cerberus supported-claim mining")
+        print("AgentReady ClaimEvidence supported-claim mining")
         print(f"Mined: {result['mined']} Skipped: {result['skipped']}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-mine-supported-claims-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-mine-supported-claims-latest.json'}")
         return 0
     if args.action == "mine-unsupported-promotions":
         result = mine_unsupported_promotions(root, coordination_root=Path(args.coordination_root) if args.coordination_root else None)
-        print("AgentReady Cerberus unsupported-promotion mining")
+        print("AgentReady ClaimEvidence unsupported-promotion mining")
         print(f"Mined: {result['mined']} Skipped: {result['skipped']}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-mine-unsupported-promotions-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-mine-unsupported-promotions-latest.json'}")
         return 0
     if args.action == "mine-unsupported-promotions-v2":
         result = mine_unsupported_promotions_v2(root, coordination_root=Path(args.coordination_root) if args.coordination_root else None)
-        print("AgentReady Cerberus unsupported-promotion v2 mining")
+        print("AgentReady ClaimEvidence unsupported-promotion v2 mining")
         print(f"Mined: {result['mined']} Skipped: {result['skipped']}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-mine-unsupported-promotions-v2-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-mine-unsupported-promotions-v2-latest.json'}")
         return 0
     if args.action == "mine-vault-code-confusion":
         result = mine_vault_code_confusion(root, coordination_root=Path(args.coordination_root) if args.coordination_root else None)
-        print("AgentReady Cerberus vault/code-confusion mining")
+        print("AgentReady ClaimEvidence vault/code-confusion mining")
         print(f"Mined: {result['mined']} Skipped: {result['skipped']}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-mine-vault-code-confusion-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-mine-vault-code-confusion-latest.json'}")
         return 0
     if args.action == "mine-misdirected-verification":
         result = mine_misdirected_verification(root, coordination_root=Path(args.coordination_root) if args.coordination_root else None)
-        print("AgentReady Cerberus misdirected-verification mining")
+        print("AgentReady ClaimEvidence misdirected-verification mining")
         print(f"Mined: {result['mined']} Skipped: {result['skipped']}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-mine-misdirected-verification-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-mine-misdirected-verification-latest.json'}")
         return 0
     if args.action == "generate-vault-code-confusion-controlled-cases":
         result = generate_vault_code_confusion_controlled_cases(root)
-        print("AgentReady Cerberus vault/code controlled-case generation")
+        print("AgentReady ClaimEvidence vault/code controlled-case generation")
         print(f"Generated: {result['generated']} Validated: {result['validated']} Promoted to Gold: {result['promoted_to_gold']}")
         print(f"Staging: {root / result['staging_path']}")
         return 0 if result["validated"] else 2
     if args.action == "generate-unsupported-promotion-controlled-cases":
         result = generate_unsupported_promotion_controlled_cases(root)
-        print("AgentReady Cerberus unsupported-promotion controlled-case generation")
+        print("AgentReady ClaimEvidence unsupported-promotion controlled-case generation")
         print(f"Generated: {result['generated']} Validated: {result['validated']} Promoted to Gold: {result['promoted_to_gold']}")
         print(f"Staging: {root / result['staging_path']}")
         return 0 if result["validated"] else 2
     if args.action == "generate-misdirected-verification-controlled-cases":
         result = generate_misdirected_verification_controlled_cases(root)
-        print("AgentReady Cerberus misdirected-verification controlled-case generation")
+        print("AgentReady ClaimEvidence misdirected-verification controlled-case generation")
         print(f"Generated: {result['generated']} Validated: {result['validated']} Promoted to Gold: {result['promoted_to_gold']}")
         print(f"Staging: {root / result['staging_path']}")
         return 0 if result["validated"] else 2
     if args.action == "generate-completion-by-deferral-controlled-cases":
         result = generate_completion_by_deferral_controlled_cases(root)
-        print("AgentReady Cerberus completion-by-deferral controlled-case generation")
+        print("AgentReady ClaimEvidence completion-by-deferral controlled-case generation")
         print(f"Generated: {result['generated']} Validated: {result['validated']} Promoted to Gold: {result['promoted_to_gold']}")
         print(f"Staging: {root / result['staging_path']}")
         return 0 if result["validated"] else 2
     if args.action == "generate-supported-claim-controlled-cases":
         result = generate_supported_claim_controlled_cases(root)
-        print("AgentReady Cerberus supported-claim controlled-case generation")
+        print("AgentReady ClaimEvidence supported-claim controlled-case generation")
         print(f"Generated: {result['generated']} Validated: {result['validated']} Promoted to Gold: {result['promoted_to_gold']}")
         print(f"Staging: {root / result['staging_path']}")
         return 0 if result["validated"] else 2
     if args.action == "emit-dataset-card":
         result = emit_dataset_card(root)
-        print("AgentReady Cerberus dataset card")
+        print("AgentReady ClaimEvidence dataset card")
         print(f"Records: {result['total_records']} Natural: {result['natural_records']} Controlled: {result['controlled_records']} ({result['controlled_pct']}%)")
         print(f"Card: {root / result['path']}")
         return 0
     if args.action == "emit-label-taxonomy":
         result = emit_label_taxonomy(root)
-        print("AgentReady Cerberus label taxonomy")
+        print("AgentReady ClaimEvidence label taxonomy")
         print(f"Labels: {', '.join(result['labels'])}")
         print(f"Taxonomy: {root / result['path']}")
         return 0
-    if args.action == "build-cerberus-eval-split":
-        result = build_cerberus_eval_split(root)
-        print("AgentReady Cerberus eval split")
+    if args.action == "build-claim_evidence-eval-split":
+        result = build_claim_evidence_eval_split(root)
+        print("AgentReady ClaimEvidence eval split")
         print(f"Total: {result['total_cases']} Heldout: {result['heldout_count']} Heldout controlled proportion: {result['heldout_controlled_proportion']}")
         print(f"SAFE heldout natural-majority: {result['safe_heldout_natural_majority']} All six labels in heldout: {result['all_six_labels_in_heldout']}")
         print(f"Manifest: {root / result['manifest_path']}")
         return 0
-    if args.action == "cerberus-baseline-eval":
-        result = cerberus_baseline_eval(root)
+    if args.action == "claim_evidence-baseline-eval":
+        result = claim_evidence_baseline_eval(root)
         m = result["metrics"]
-        print("AgentReady Cerberus baseline eval (provider-neutral, deterministic)")
+        print("AgentReady ClaimEvidence baseline eval (provider-neutral, deterministic)")
         print(f"Heldout: {result['heldout_case_count']} verdict_accuracy: {m['verdict_accuracy']} macro_f1: {m['macro_f1']}")
         print(f"natural_acc: {m['natural_subset_accuracy']} controlled_acc: {m['controlled_subset_accuracy']} delta: {m['natural_vs_controlled_delta']}")
         print(f"SAFE_FPR: {m['SAFE_false_positive_rate']} BLOCK_FNR: {m['BLOCK_false_negative_rate']}")
         return 0
-    if args.action == "emit-cerberus-checksums":
-        result = emit_cerberus_checksums(root)
-        print("AgentReady Cerberus checksums + release receipt")
+    if args.action == "emit-claim_evidence-checksums":
+        result = emit_claim_evidence_checksums(root)
+        print("AgentReady ClaimEvidence checksums + release receipt")
         print(f"Checksummed: {result['checksummed']} Missing: {result['missing']}")
         print(f"Release status: {result['release_status']} Gate: {result['gate_pass_count']}")
         print(f"Receipt: {root / result['receipt_path']}")
         return 0
-    if args.action == "build-inhouse-dojo":
-        result = build_inhouse_dojo(root)
-        print("AgentReady Factory Dojo internal export (internal-only)")
+    if args.action == "build-curated-dataset":
+        result = build_curated_dataset(root)
+        print("AgentReady Curated Dataset internal export (restricted-use)")
         print(f"Status: {result['status']} Seen: {result['rows_seen']} Emitted: {result['rows_emitted']} Rejected: {result['rows_rejected']}")
         print(f"External release allowed: {result['external_release_allowed']} Commercial sale allowed: {result['commercial_sale_allowed']}")
         print(f"Manifest: {root / result['manifest_path']}")
@@ -788,23 +786,23 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if result["status"] == "PASS" else 2
     if args.action == "signal-coverage-report":
         result = signal_coverage_report(root)
-        print("AgentReady Factory Dojo signal coverage report")
+        print("AgentReady Curated Dataset signal coverage report")
         print(f"Records: {result['records_with_signal_coverage']} Value counts: {result['overall_signal_value_counts']}")
         print(f"Recommended next instrumentation: {result['recommended_next_instrumentation']}")
         return 0
     if args.action == "source-signal-safety-report":
         result = source_signal_safety_report(root)
-        print("AgentReady Factory Dojo source-signal safety report")
+        print("AgentReady Curated Dataset source-signal safety report")
         print(f"Rows scanned: {result['rows_scanned']} Status counts: {result['status_counts']}")
         print(f"Detector counts: {result['detector_counts']} All clear: {result['all_clear']}")
         return 0 if result["all_clear"] else 2
     if args.action == "import-historical-chats":
         result = import_historical_chats(root, source_path=args.dataset_path or None)
-        print("AgentReady historical chat import (internal-only)")
+        print("AgentReady historical chat import (restricted-use)")
         print(f"Status: {result['status']} Sessions: {result['session_count']} Segments: {result['segment_count']}")
         print(f"Quarantined segments: {result['quarantined_segments']} Redacted: {result['redacted_segments']}")
-        print(f"All internal only: {result['all_internal_only']} Output: {root / result['output_root']}")
-        return 0 if result["all_internal_only"] else 2
+        print(f"All restricted use: {result['all_restricted_use']} Output: {root / result['output_root']}")
+        return 0 if result["all_restricted_use"] else 2
     if args.action == "sample-historical-chats":
         result = sample_historical_chats(
             args.dataset_path or None,
@@ -819,30 +817,30 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Pilot conversations: {result['pilot_conversations_path']}")
         print(f"Pilot manifest: {result['pilot_manifest_path']}")
         return 0
-    if args.action == "export-cerberus-sentinel-training":
-        result = export_cerberus_sentinel_training(root, heldout_pct=args.heldout_pct)
-        print("AgentReady Dojo training exporter -- Cerberus Sentinel (internal-only, export-only, LogosOne curriculum)")
+    if args.action == "export-claim_evidence-sentinel-training":
+        result = export_claim_evidence_sentinel_training(root, heldout_pct=args.heldout_pct)
+        print("AgentReady Dataset training exporter -- ClaimEvidence Sentinel (restricted-use, export-only, PairedCurriculum curriculum)")
         print(f"Status: {result['status']} Train: {result['train_count']} Heldout: {result['heldout_count']}")
-        print(f"LogosOne rows: {result['rows_with_logosone']} Signs: {result['sign_distribution']} Grades: {result['grade_distribution']} Paired/Unpaired: {result['paired_rows']}/{result['unpaired_rows']}")
+        print(f"PairedCurriculum rows: {result['rows_with_paired_curriculum']} Signs: {result['sign_distribution']} Grades: {result['grade_distribution']} Paired/Unpaired: {result['paired_rows']}/{result['unpaired_rows']}")
         print(f"Excluded: {result['excluded']}")
-        print(f"Readback matches: {result['readback_matches']} No overlap: {result['train_heldout_no_overlap']} All internal only: {result['all_internal_only']}")
+        print(f"Readback matches: {result['readback_matches']} No overlap: {result['train_heldout_no_overlap']} All restricted use: {result['all_restricted_use']}")
         prov = result["provenance_summary"]
         print(f"Provenance source_commit: {result['source_commit']} Human/Model/Factory: {prov['human_vs_model_vs_factory']}")
         print(f"Provenance review_status: {prov['review_status_distribution']} Unknown creator/model_version: {prov['unknown_creator_count']}/{prov['unknown_model_version_count']}")
         print(f"Model training performed: {result['model_training_performed']} Output: {root / result['output_root']}")
-        ok = result["readback_matches"] and result["train_heldout_no_overlap"] and result["all_internal_only"]
+        ok = result["readback_matches"] and result["train_heldout_no_overlap"] and result["all_restricted_use"]
         return 0 if ok else 2
-    if args.action == "cerberus-sentinel-baseline-eval":
-        result = cerberus_sentinel_baseline_eval(root)
-        print("AgentReady Cerberus Sentinel heldout baseline eval (eval-only, deterministic)")
+    if args.action == "claim_evidence-sentinel-baseline-eval":
+        result = claim_evidence_sentinel_baseline_eval(root)
+        print("AgentReady ClaimEvidence Sentinel heldout baseline eval (eval-only, deterministic)")
         print(f"Status: {result['status']} Evaluated: {result['evaluated_rows']} Excluded: {result['excluded_rows']}")
         print(f"Verdict accuracy: {result['verdict_accuracy']} Label macro F1: {result['label_macro_f1']} False-SAFE rate: {result['false_safe_rate']}")
         print(f"Critical-label recall: {result['critical_label_recall']}")
         print(f"Model training performed: {result['model_training_performed']} Output: {root / result['output_root']}")
         return 0
-    if args.action == "cerberus-sentinel-eval-gate":
-        result = cerberus_sentinel_eval_and_gate(root, predictions_path=args.dataset_path or None)
-        print("AgentReady Cerberus Sentinel eval + promotion gate (pure-Python, runtime-independent)")
+    if args.action == "claim_evidence-sentinel-eval-gate":
+        result = claim_evidence_sentinel_eval_and_gate(root, predictions_path=args.dataset_path or None)
+        print("AgentReady ClaimEvidence Sentinel eval + promotion gate (pure-Python, runtime-independent)")
         print(f"Decision: {result['decision']} Promoted: {result['promoted']}")
         print(f"Heldout: {result['total_heldout_rows']} Matched: {result['matched_predictions']} Missing: {result['missing_predictions']} Extra: {result['extra_predictions']}")
         print(f"Verdict acc: {result['verdict_accuracy']} Label macro F1: {result['label_macro_f1']} Sign acc: {result['sign_accuracy']} False-SAFE: {result['false_safe_rate']} Strict-JSON: {result['strict_json_validity']}")
@@ -876,21 +874,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.action == "validate-controlled-cases":
         result = validate_controlled_cases(root)
-        print("AgentReady Cerberus controlled-case validation")
+        print("AgentReady ClaimEvidence controlled-case validation")
         print(f"Checked: {result['checked']} Validated: {result['validated']} Eligible: {result['eligible_for_promotion']}")
         print(f"Report: {root / result['validation_report_path']}")
         return 0 if result["validated"] else 2
     if args.action == "promote-controlled-cases":
         result = promote_controlled_cases(root)
-        print("AgentReady Cerberus controlled-case promotion")
+        print("AgentReady ClaimEvidence controlled-case promotion")
         print(f"Validated: {result['validated']} Promoted: {result['promoted']} Skipped duplicates: {result['skipped_duplicates']}")
         print(f"Receipt: {root / result['promotion_receipt_path']}")
         return 0 if result["validated"] else 2
-    if args.action == "upgrade-cerberus-gold":
-        result = upgrade_cerberus_gold_schema(root)
-        print("AgentReady Cerberus Gold schema upgrade")
+    if args.action == "upgrade-claim_evidence-gold":
+        result = upgrade_claim_evidence_gold_schema(root)
+        print("AgentReady ClaimEvidence Gold schema upgrade")
         print(f"Rewritten: {result['rewritten']} Skipped: {len(result['skipped'])}")
-        print(f"Report: {root / 'reports' / 'data-foundry' / 'cerberus-gold-schema-upgrade-latest.json'}")
+        print(f"Report: {root / 'reports' / 'data-foundry' / 'claim_evidence-gold-schema-upgrade-latest.json'}")
         return 0
     result = build_data_foundry(
         root,
@@ -900,7 +898,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"AgentReady Data Foundry release: {result['release_id']}")
     print(f"Manifest: {root / result['manifest_path']}")
-    print(f"BDXL plan: {root / result['bdxl_plan_path']}")
+    print(f"ARCHIVE plan: {root / result['archive_plan_path']}")
     print(f"Promoted: {result['summary']['promoted']} Rejected: {result['summary']['rejected']}")
     return 0
 

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -23,7 +27,7 @@ def test_query_and_read_satisfy_required_policy():
     assert mc.compliance_summary(task)["status"] == "missing"
     mc.append_receipt(
         task,
-        _receipt("t1", "serena_read", store="serena-factory", memory_name="global/doctrine"),
+        _receipt("t1", "memory_read", store="shared-memory", memory_name="global/doctrine"),
     )
     summary = mc.compliance_summary(task)
     assert summary["status"] == "compliant"
@@ -50,11 +54,11 @@ def test_write_requires_graph_refresh():
     mc.append_receipt(task, _receipt("t1", "graph_query", query="factory doctrine"))
     mc.append_receipt(
         task,
-        _receipt("t1", "serena_read", store="serena", memory_name="global/private"),
+        _receipt("t1", "memory_read", store="private-memory", memory_name="global/private"),
     )
     mc.append_receipt(
         task,
-        _receipt("t1", "durable_write", store="serena-factory", memory_name="global/new"),
+        _receipt("t1", "durable_write", store="shared-memory", memory_name="global/new"),
     )
     assert "graph refresh" in " ".join(mc.completion_issues(task)).lower()
     mc.append_receipt(task, _receipt("t1", "graph_refresh"))

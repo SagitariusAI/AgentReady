@@ -1,11 +1,8 @@
-"""Version record -- Python port of `bin/agent-version-record.ps1` (PS->Python Phase 7).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Writes a release/version record (manifest JSON + Markdown, optional evidence copy) into the coordination
-store's `versions/<version>/`, and logs a `version_recorded` event. Uses the already-Python
-`agent_coordination` package for the store + events (so the wrapper no longer dot-sources
-agent-coordination-lib.ps1). Behavior preserved: the manifest schema/shape, the Markdown layout, the
-evidence set, the event, and the output.
-"""
+"""Public support for agent version record."""
 from __future__ import annotations
 
 import argparse

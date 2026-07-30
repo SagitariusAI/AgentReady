@@ -1,24 +1,8 @@
-"""Coordination CLI — Python port of the coordination command wrappers (PS->Python migration Phase 1G).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-One subcommand per legacy wrapper, preserving its flags, **exit codes**, on-disk artifacts, and human
-output:
-
-    task-start        <- bin/agent-task-start.ps1        (exit 3 quality / 2 conflict)
-    task-claim        <- bin/agent-task-claim.ps1         (exit 3 quality / 2 claimed-or-conflict)
-    task-handoff      <- bin/agent-task-handoff.ps1       (exit 3 quality / 4 work-state refuse)
-    task-status       <- bin/agent-task-status.ps1
-    task-close        <- bin/agent-task-close.ps1
-    task-review       <- bin/agent-task-review.ps1
-    conflict-check    <- bin/agent-conflict-check.ps1     (exit 2 conflict)
-    worktree-create   <- bin/agent-worktree-create.ps1
-    coordination-init <- bin/agent-coordination-init.ps1
-
-The DURABLE coordination logic (task state, events, locks, conflicts, quality gates, handoff/review/
-worktree records) is Python. Calls to not-yet-migrated report generators (situational-awareness,
-dashboard, release-scorecard, router audit, and data-foundry) stay **best-effort adapter subprocesses**.
-The already-Python work-state gate is different: a missing or failed gate refuses a ``complete`` handoff.
-A best-effort report failure never changes a durable record or the exit code.
-"""
+"""Public support for cli."""
 from __future__ import annotations
 
 import argparse
@@ -216,7 +200,7 @@ def cmd_task_handoff(a: argparse.Namespace) -> int:
             print("Memory compliance gate failed:")
             for issue in memory_issues:
                 print(f"- {issue}")
-            print("Record the task's graph query and Serena read receipts with agent-task-memory, "
+            print("Record the task's graph query and memory read receipts with agent-task-memory, "
                   "or add an explicit no-relevant-memory receipt with query evidence.")
             return 5
 
@@ -245,11 +229,11 @@ def cmd_task_handoff(a: argparse.Namespace) -> int:
         if not a.force_dirty:
             print("")
             print(f"Handoff REFUSED. A '{a.status}' handoff requires a clean, gate-green tree.")
-            print("Hand off honestly as -Status wip / -Status blocked, or (founder-authorized) "
+            print("Hand off honestly as -Status wip / -Status blocked, or (owner-authorized) "
                   "-ForceDirty -DirtyReason '<why>'.")
             return 4
         if not a.dirty_reason:
-            print('-ForceDirty requires -DirtyReason "<founder-authorized reason>".')
+            print('-ForceDirty requires -DirtyReason "<owner-authorized reason>".')
             return 4
         force_note = f" (FORCED over non-clean/green tree: {a.dirty_reason})"
         print(f"[work-state] OVERRIDE accepted -- {a.dirty_reason}")
@@ -727,7 +711,7 @@ def main(argv: list[str] | None = None) -> int:
         return args.func(args)
     except NotADirectoryError as exc:
         # Clear, non-traceback error for the file-as-repo-root misparse
-        # (FACTORY-ANOMALY-20260620-claim-helper-path-misparse).
+        # (regression-path-misparse).
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from agent_workflow_lanes import classify_workflow_lane, stamp_workflow_lane
 
 

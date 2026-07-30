@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Exact-commit release-readiness evidence for the public AgentReady distribution."""
 from __future__ import annotations
 

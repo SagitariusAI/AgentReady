@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Fail-closed privacy and persistence guard for public AgentReady releases."""
 from __future__ import annotations
 
@@ -9,6 +13,12 @@ import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
+
+PYTHON_HEADER = (
+    "# Copyright (c) 2026 Sagittarius AI\n"
+    "# Project Owner: Alex Burca\n"
+    "# SPDX-License-Identifier: Apache-2.0\n"
+)
 
 IGNORED_ROOTS = {
     ".git",
@@ -74,8 +84,8 @@ FORBIDDEN_SUFFIXES = {
     ".wal",
 }
 TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("production_path", re.compile(r"(?i)D:[\\/]" r"AgentReady(?:[\\/]|$)")),
-    ("user_profile", re.compile(r"(?i)[A-Z]:[\\/]Users[\\/](?!sample-user(?:[\\/]|$))[^\\/\s]+")),
+    ("production_path", re.compile(r"(?i)D:[\\/]+" r"AgentReady(?:[\\/]+|$)")),
+    ("user_profile", re.compile(r"(?i)[A-Z]:[\\/]+Users[\\/]+(?!sample-user(?:[\\/]+|$))[^\\/\s]+")),
     ("unix_home", re.compile(r"(?i)/" + r"home/(?!user(?:/|$))[^/\s]+")),
     ("private_ipv4", re.compile(
         r"(?<![\d.])(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
@@ -88,10 +98,32 @@ TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         r"(?i)\b(?:" + "agentready" + r"-local|change" + r"-me|change" + r"me)\b"
     )),
     ("internal_project", re.compile(
-        r"(?i)\b(?:" + "Sagitarius" + "AI|Sovereign" + "Forge|Company" + "OS|Open" + r"Jarvis)\b"
+        r"(?i)\b(?:"
+        + "Sovereign" + r"[ _.-]*" + "Forge"
+        + "|Company" + r"[ _.-]*" + "OS"
+        + "|Open" + r"[ _.-]*" + "Jarvis"
+        + r")\b"
+    )),
+    ("private_asset", re.compile(
+        r"(?i)\b(?:"
+        + "Cer" + "berus"
+        + "|Logos" + "One"
+        + "|Sovereign" + r"[ _.-]*" + "Studio"
+        + "|Data" + r"[ _.-]*" + "Forge"
+        + r")\b"
+    )),
+    ("restricted_language", re.compile(
+        r"(?i)\b(?:"
+        + "internal" + r"[-_ ]*only"
+        + "|pro" + "prietary"
+        + "|never" + r"\s+" + "externalized"
+        + "|" + "found" + "er" + r"[-_ ]*" + "mandated"
+        + r")\b"
     )),
     ("local_username", re.compile(r"(?i)\b" + "alex" + r"b\b")),
 )
+EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b")
+RESERVED_EMAIL_DOMAINS = {"example.com", "example.net", "example.org", "example.invalid"}
 
 
 @dataclass(frozen=True)
@@ -139,7 +171,28 @@ def _text_findings(path: str, data: bytes) -> list[Finding]:
             if category in {"github_token", "embedded_uri_credential", "private_key", "known_default_secret"}:
                 detail = "<redacted>"
             findings.append(Finding(category, path, detail[:160]))
+    for match in EMAIL_PATTERN.finditer(text):
+        domain = match.group(1).lower()
+        if domain not in RESERVED_EMAIL_DOMAINS and not domain.endswith(".test"):
+            findings.append(Finding("email_address", path, "<redacted>"))
+            break
     return findings
+
+
+def _python_header_findings(path: str, data: bytes) -> list[Finding]:
+    if not path.lower().endswith(".py"):
+        return []
+    text = data.decode("utf-8", errors="replace").replace("\r\n", "\n")
+    lines = text.splitlines(keepends=True)
+    offset = 0
+    if lines and lines[0].startswith("#!"):
+        offset = 1
+    if offset < len(lines) and re.match(r"^#.*coding[:=]", lines[offset]):
+        offset += 1
+    prologue = "".join(lines[offset:offset + 3])
+    if prologue != PYTHON_HEADER:
+        return [Finding("python_header", path, "missing or non-canonical ownership/SPDX header")]
+    return []
 
 
 def _source_files(repo: Path) -> list[Path]:
@@ -167,7 +220,9 @@ def scan_source(repo: Path) -> tuple[list[Finding], int]:
     for file_path in files:
         relative = file_path.relative_to(repo).as_posix()
         findings.extend(_path_findings(relative))
-        findings.extend(_text_findings(relative, file_path.read_bytes()))
+        data = file_path.read_bytes()
+        findings.extend(_text_findings(relative, data))
+        findings.extend(_python_header_findings(relative, data))
     return findings, len(files)
 
 
@@ -183,7 +238,9 @@ def scan_archive(archive: Path) -> tuple[list[Finding], int]:
                 continue
             count += 1
             findings.extend(_path_findings(info.filename))
-            findings.extend(_text_findings(info.filename, bundle.read(info)))
+            data = bundle.read(info)
+            findings.extend(_text_findings(info.filename, data))
+            findings.extend(_python_header_findings(info.filename, data))
     return findings, count
 
 

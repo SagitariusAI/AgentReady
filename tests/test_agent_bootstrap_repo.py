@@ -1,4 +1,8 @@
-"""Focused tests for the repo-bootstrap durable logic (PS->Python Phase 7)."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Focused tests for portable repository bootstrap behavior."""
 from __future__ import annotations
 
 import sys
@@ -61,7 +65,7 @@ def test_bootstrap_creates_scaffolding_and_calls_init(tmp_path):
     result = b.bootstrap(repo, template_root=tmp_path / "no-templates",
                          coordination_init_fn=lambda r: calls.append(str(r)))
     assert calls == [str(repo)]  # coordination-init invoked once
-    for rel in ("AGENTS.md", "CLAUDE.md", ".gitignore", ".agentready.yaml"):
+    for rel in ("AGENTS.md", ".gitignore", ".agentready.yaml"):
         assert (repo / rel).exists(), rel
     agents = (repo / "AGENTS.md").read_text(encoding="utf-8")
     assert "agent-tool-router -Task" in agents and b.MARKER_START in agents
@@ -71,9 +75,9 @@ def test_bootstrap_creates_scaffolding_and_calls_init(tmp_path):
 
 
 def test_router_lines_contract():
-    # the marked-block instructions must keep the strict-entry + router + handoff guidance
+    # The generated instructions retain routing, release, and handoff guidance.
     joined = "\n".join(b.ROUTER_LINES)
-    assert "strict-entry workspaces" in joined
+    assert "auditable" in joined
     assert 'agent-tool-router -Task "<user request>" -Mode Plan' in joined
     assert "agent-release-scorecard" in joined
-    assert "-AllowWeak only for an explicitly weak/emergency record" in joined
+    assert "interpreted evidence" in joined

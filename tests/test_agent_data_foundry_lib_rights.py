@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from agent_data_foundry_lib.rights import (
@@ -15,7 +19,7 @@ from agent_data_foundry_lib.rights import (
 )
 
 
-def test_default_rights_are_internal_only_and_locked_down() -> None:
+def test_default_rights_are_restricted_use_and_locked_down() -> None:
     rights = default_data_rights()
     assert rights["grade"] == "A_INTERNAL_RESEARCH_ONLY"
     # conservative defaults: nothing external, both gates required
@@ -24,7 +28,7 @@ def test_default_rights_are_internal_only_and_locked_down() -> None:
     assert rights["external_training_allowed"] is False
     assert rights["commercial_sale_allowed"] is False
     assert rights["requires_legal_review"] is True
-    assert rights["requires_founder_release"] is True
+    assert rights["requires_owner_release"] is True
     assert validate_data_rights(rights) == []
 
 
@@ -62,10 +66,10 @@ def test_external_training_candidate_requires_license_evidence() -> None:
 
 
 def test_no_fabricated_commercial_clearance() -> None:
-    # commercial_sale_allowed without founder/legal clearance must not validate
+    # commercial_sale_allowed without owner/legal clearance must not validate
     forged = default_data_rights(grade="D_EXTERNAL_TRAINING_CANDIDATE", commercial_sale_allowed=True)
     failures = validate_data_rights(forged)
-    assert "data_rights.commercial_sale_allowed:requires_founder_and_legal_clearance" in failures
+    assert "data_rights.commercial_sale_allowed:requires_owner_and_legal_clearance" in failures
 
 
 def test_secrets_and_raw_output_quarantine() -> None:
@@ -106,7 +110,7 @@ def test_controlled_case_is_not_model_generated() -> None:
 def test_incident_need_map_drives_technical_value() -> None:
     assert infer_data_need_from_incident({"incident_type": "MISDIRECTED_VERIFICATION"})["technical_value"] == "CRITICAL"
     unknown = infer_data_need_from_incident({"incident_type": "SOMETHING_NEW"})
-    assert unknown["primary_need"] == "FACTORY_DOJO_INTERNAL"
+    assert unknown["primary_need"] == "FACTORY_DATASET_INTERNAL"
     assert validate_data_need(unknown) == []
     assert "DOCTRINE_DRIFT" in INCIDENT_NEED_MAP
 

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Read-only views over the store: `status` (current snapshot) and `tail` (recent events)."""
 from __future__ import annotations
 

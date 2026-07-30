@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import hashlib
@@ -91,7 +95,7 @@ def test_product_state_scan_release_ready_is_not_sell_ready(tmp_path: Path) -> N
     for c in draft["components"]:
         assert c["status"] not in ("RELEASE_CANDIDATE", "PRODUCTION_READY")  # scanner never infers these
         assert c["commercial_clearance"] != "cleared"  # never claims commercial clearance
-        assert c["founder_acceptance"] is None  # never fabricated
+        assert c["owner_acceptance"] is None  # never fabricated
     brief = (out / "product_reality_brief.md").read_text(encoding="utf-8").lower()
     assert "not asserted here" in brief and "sell-ready" in brief  # brief separates sell-ready explicitly
 

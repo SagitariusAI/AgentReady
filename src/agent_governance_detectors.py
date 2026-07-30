@@ -1,19 +1,8 @@
-"""Factory governance detectors -- Python port of `bin/agent-governance-detectors.ps1` (PS->Python Phase 4).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-**Advisory, read-only.** Where the commit-guard is PREVENTION (block silent starts), these are DETECTION:
-make abandoned / stranded / unpushed / silent work loud. Five detectors, exit 0 when clean / 1 when any
-problem is found (a check + a forcing function):
-
-  - stale_claim    : a claimed/in_progress task idle > StaleClaimHours (claimed and forgotten)
-  - missing_handoff: a claimed/in_progress task idle > IdleHandoffHours (stopped without handing off)
-  - unpushed_batch : commits ahead of upstream, oldest beyond UnpushedAgeHours (not landed/visible)
-  - orphan_worktree: a git worktree with no active task behind it
-  - silent_commit  : an unpushed commit whose files have no covering claim
-
-Reuses the already-ported coordination engine (`agent_coordination`) for the store reads + path overlap,
-exactly as the PowerShell reused `agent-coordination-lib.ps1`. Byte-faithful to the PS finding shapes,
-messages (`{n:N0}` -> `{n:,.0f}`), order, and exit code.
-"""
+"""Public support for agent governance detectors."""
 from __future__ import annotations
 
 import argparse

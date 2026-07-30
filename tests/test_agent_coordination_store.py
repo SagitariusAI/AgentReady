@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -51,7 +55,7 @@ def test_ensure_state_is_idempotent(repo):
 
 
 def test_ensure_state_rejects_file_as_repo_root(tmp_path, monkeypatch):
-    """Regression: FACTORY-ANOMALY-20260620-claim-helper-path-misparse.
+    """Regression: regression-path-misparse.
 
     A file path leaking into the repo root (e.g. a space-separated `-Paths a b c` value
     spilling into the wrapper's positional `-Repo`) must be rejected with a clear error

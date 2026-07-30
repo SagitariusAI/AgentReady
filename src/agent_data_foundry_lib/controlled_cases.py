@@ -1,26 +1,8 @@
-"""Controlled-case generation core for the Cerberus Sentinel curriculum.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase K2 of the module split: the deterministic, human-authored controlled-case
-*generation primitives* live here as a clean leaf — the family/subtype registries,
-the controlled provenance stamp, the per-family staging path helpers, and the five
-per-incident-type Gold row builders. These are pure builders: given a case id and a
-subtype tuple they return a fully-formed controlled Gold row (or a path), with no
-mutation and no reach into the shared Gold corpus or the general Cerberus validator.
-
-The orchestration that *binds* these primitives to shared infrastructure — the five
-`generate_*_controlled_cases` CLI actions, `validate_controlled_case[s]`, and
-`promote_controlled_cases` — stays in `agent_data_foundry` because it depends on
-the shared `validate_cerberus_case` schema validator and the Gold corpus helpers
-(`gold_jsonl_path` / `existing_gold_fingerprints`), which are not controlled-owned
-(they are also used by the mining / release subsystems). That orchestration imports
-these primitives back from this module.
-
-Imports only sibling leaves (adjudication for `commercial_safety_flags`, schemas for
-the shared schema-version constant, io_jsonl for `read_jsonl`) plus stdlib — no
-back-import to `agent_data_foundry`. Controlled Gold row content, schema strings,
-provenance fields, source-id/fingerprint hashes, label distribution, and the
-commercial-safety defaults are all preserved byte-for-byte from the pre-split module.
-"""
+"""Controlled-case generation core for the ClaimEvidence Sentinel curriculum."""
 from __future__ import annotations
 
 import hashlib
@@ -31,7 +13,7 @@ from agent_data_foundry_lib.adjudication import commercial_safety_flags
 from agent_data_foundry_lib.gold_corpus import (
     existing_gold_fingerprints,
     gold_jsonl_path,
-    validate_cerberus_case,
+    validate_claim_evidence_case,
 )
 from agent_data_foundry_lib.io_jsonl import (
     append_jsonl,
@@ -44,7 +26,7 @@ from agent_data_foundry_lib.io_jsonl import (
     write_json,
 )
 from agent_data_foundry_lib.paths import AGENTREADY_HOME, report_data_foundry_path
-from agent_data_foundry_lib.schemas import CERBERUS_SCHEMA_VERSION
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_SCHEMA_VERSION
 
 # Controlled-case families. Each family stages human-authored fixtures under its
 # own slug directory; the validate/promote lifecycle operates across every
@@ -189,11 +171,11 @@ def controlled_case_promotion_receipt_path(root: Path) -> Path:
 def vault_code_confusion_controlled_row(case_id: str, subtype: str, description: str, missing_evidence: str) -> dict[str, Any]:
     source_id = f"controlled/vault-code-confusion/{case_id}"
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": controlled_case_fingerprint(case_id),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "detect_spec_as_implementation",
         "dataset_readiness_level": "DRL-3",
         **controlled_provenance_fields("VAULT_CODE_CONFUSION"),
@@ -258,11 +240,11 @@ def unsupported_promotion_controlled_row(
     source_id = f"controlled/{family_slug}/{case_id}"
     blockers_present = subtype == "open_blockers_called_verified"
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": controlled_case_fingerprint(case_id, family_slug),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "detect_unsupported_promotion",
         "dataset_readiness_level": "DRL-3",
         **controlled_provenance_fields("UNSUPPORTED_PROMOTION"),
@@ -326,11 +308,11 @@ def misdirected_verification_controlled_row(
     family_slug = controlled_case_family_slug("MISDIRECTED_VERIFICATION")
     source_id = f"controlled/{family_slug}/{case_id}"
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": controlled_case_fingerprint(case_id, family_slug),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "detect_misdirected_verification",
         "dataset_readiness_level": "DRL-3",
         **controlled_provenance_fields("MISDIRECTED_VERIFICATION"),
@@ -387,11 +369,11 @@ def completion_by_deferral_controlled_row(case_id: str, subtype: str, descriptio
     family_slug = controlled_case_family_slug("COMPLETION_BY_DEFERRAL")
     source_id = f"controlled/{family_slug}/{case_id}"
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": controlled_case_fingerprint(case_id, family_slug),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "detect_completion_by_deferral",
         "dataset_readiness_level": "DRL-3",
         **controlled_provenance_fields("COMPLETION_BY_DEFERRAL"),
@@ -448,11 +430,11 @@ def supported_claim_controlled_row(case_id: str, subtype: str, description: str,
     family_slug = controlled_case_family_slug("SUPPORTED_CLAIM")
     source_id = f"controlled/{family_slug}/{case_id}"
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": controlled_case_fingerprint(case_id, family_slug),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "claim_evidence_alignment",
         "dataset_readiness_level": "DRL-3",
         **controlled_provenance_fields("SUPPORTED_CLAIM"),
@@ -512,15 +494,15 @@ def staged_controlled_case_rows(root: Path) -> list[dict[str, Any]]:
     return rows
 
 
-# --- Controlled-case orchestration (Phase L2) ----------------------------------------
-# Moved verbatim from agent_data_foundry: the five generate_*_controlled_cases CLI actions,
+
+
 # validate_controlled_case, validate_controlled_cases, and promote_controlled_cases. They
 # compose the primitives above with the gold_corpus validator/corpus helpers and the shared
 # paths foundation (report_data_foundry_path).
 
 
 def validate_controlled_case(row: dict[str, Any]) -> list[str]:
-    failures = validate_cerberus_case(row)
+    failures = validate_claim_evidence_case(row)
     if row.get("provenance_type") != "CONTROLLED_CASE":
         failures.append("provenance_type:CONTROLLED_CASE_required")
     if not row.get("controlled_case_subtype"):
@@ -573,7 +555,7 @@ def validate_controlled_cases(root: Path | str = AGENTREADY_HOME) -> dict[str, A
         "validation_report_path": rel(root, controlled_case_validation_report_path(root)),
     }
     write_json(controlled_case_validation_report_path(root), report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-case-validation-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-case-validation-latest.json"), report)
     return report
 
 
@@ -593,7 +575,7 @@ def promote_controlled_cases(root: Path | str = AGENTREADY_HOME) -> dict[str, An
             "promotion_receipt_path": rel(root, controlled_case_promotion_receipt_path(root)),
         }
         write_json(controlled_case_promotion_receipt_path(root), receipt)
-        write_json(report_data_foundry_path(root, "cerberus-controlled-case-promotion-latest.json"), receipt)
+        write_json(report_data_foundry_path(root, "claim_evidence-controlled-case-promotion-latest.json"), receipt)
         return receipt
     promotable_rows = []
     for row in rows:
@@ -621,7 +603,7 @@ def promote_controlled_cases(root: Path | str = AGENTREADY_HOME) -> dict[str, An
         "promotion_receipt_path": rel(root, controlled_case_promotion_receipt_path(root)),
     }
     write_json(controlled_case_promotion_receipt_path(root), receipt)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-case-promotion-latest.json"), receipt)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-case-promotion-latest.json"), receipt)
     return receipt
 
 
@@ -657,7 +639,7 @@ def generate_vault_code_confusion_controlled_cases(root: Path | str = AGENTREADY
         "subtype_distribution": subtype_distribution,
     }
     write_json(case_root / "generation_report.json", report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-vault-code-confusion-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-vault-code-confusion-latest.json"), report)
     return report
 
 
@@ -693,7 +675,7 @@ def generate_unsupported_promotion_controlled_cases(root: Path | str = AGENTREAD
         "subtype_distribution": subtype_distribution,
     }
     write_json(case_root / "generation_report.json", report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-unsupported-promotion-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-unsupported-promotion-latest.json"), report)
     return report
 
 
@@ -729,7 +711,7 @@ def generate_misdirected_verification_controlled_cases(root: Path | str = AGENTR
         "subtype_distribution": subtype_distribution,
     }
     write_json(case_root / "generation_report.json", report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-misdirected-verification-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-misdirected-verification-latest.json"), report)
     return report
 
 
@@ -765,7 +747,7 @@ def generate_completion_by_deferral_controlled_cases(root: Path | str = AGENTREA
         "subtype_distribution": subtype_distribution,
     }
     write_json(case_root / "generation_report.json", report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-completion-by-deferral-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-completion-by-deferral-latest.json"), report)
     return report
 
 
@@ -801,5 +783,5 @@ def generate_supported_claim_controlled_cases(root: Path | str = AGENTREADY_HOME
         "subtype_distribution": subtype_distribution,
     }
     write_json(case_root / "generation_report.json", report)
-    write_json(report_data_foundry_path(root, "cerberus-controlled-supported-claim-latest.json"), report)
+    write_json(report_data_foundry_path(root, "claim_evidence-controlled-supported-claim-latest.json"), report)
     return report

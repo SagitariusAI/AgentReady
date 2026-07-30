@@ -1,12 +1,11 @@
-"""LogosOne curriculum mapping/building helpers for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase B1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the internal/proprietary LogosOne curriculum-envelope helpers (signed-pair maps, grade
-bands, the per-row block builder) moved verbatim out of agent_data_foundry.py with **no
-behavior change** -- identical pair_id / sign / grade / anchors / workflow_spine /
-insufficiency / overlay / meta / pair_status output, identical curriculum distributions,
-no fabricated pairs, unchanged sign mapping. LogosOne is internal-only and never
-externalized; agent_data_foundry.py re-exports the public builder + the maps it uses.
+"""Build auditable paired-curriculum metadata for curated dataset rows.
+
+The helpers assign stable signs, pair identifiers, grade bands, anchors, workflow
+spines, and insufficiency metadata without fabricating counterpart examples.
 """
 from __future__ import annotations
 
@@ -14,11 +13,10 @@ from typing import Any
 
 from agent_data_foundry_lib.io_jsonl import as_dict
 
-# LogosOne is an INTERNAL / PROPRIETARY curriculum architecture (signed pairs,
-# anchors, grade bands, workflow spines, insufficiency repair). The envelope below
-# is curriculum metadata only; it is internal-only and never externalized.
+# PairedCurriculum records signed pairs, anchors, grade bands, workflow spines,
+# and insufficiency-repair metadata for auditable dataset curation.
 # label -> (sign, anchors)
-_LOGOSONE_LABEL_MAP = {
+_PAIRED_CURRICULUM_LABEL_MAP = {
     "SUPPORTED_CLAIM": ("+", ["EVIDENCE", "ROUNDTRIP"]),
     "CLAIM_WITHOUT_EVIDENCE": ("-", ["EVIDENCE", "BOOLEAN"]),
     "UNSUPPORTED_PROMOTION": ("-", ["RELEASE_GATE", "EVIDENCE"]),
@@ -27,7 +25,7 @@ _LOGOSONE_LABEL_MAP = {
     "VAULT_CODE_CONFUSION": ("-", ["SOURCE_MAPPING", "ROUNDTRIP"]),
 }
 # label -> signed-pair family (the + and - of one family share a stable pair_id)
-_LOGOSONE_FAMILY = {
+_PAIRED_CURRICULUM_FAMILY = {
     "SUPPORTED_CLAIM": "evidence_claim",
     "CLAIM_WITHOUT_EVIDENCE": "evidence_claim",
     "UNSUPPORTED_PROMOTION": "release_promotion",
@@ -35,7 +33,7 @@ _LOGOSONE_FAMILY = {
     "MISDIRECTED_VERIFICATION": "verification_target",
     "VAULT_CODE_CONFUSION": "source_mapping",
 }
-_LOGOSONE_SPINE = {
+_PAIRED_CURRICULUM_SPINE = {
     "SUPPORTED_CLAIM": ["claim", "check_evidence", "detect_gap", "block_or_repair"],
     "CLAIM_WITHOUT_EVIDENCE": ["claim", "check_evidence", "detect_gap", "block_or_repair"],
     "UNSUPPORTED_PROMOTION": ["claim", "check_evidence", "detect_gap", "block_or_repair"],
@@ -43,7 +41,7 @@ _LOGOSONE_SPINE = {
     "MISDIRECTED_VERIFICATION": ["task", "tool_selection", "verification", "verdict"],
     "VAULT_CODE_CONFUSION": ["claim", "check_evidence", "detect_gap", "block_or_repair"],
 }
-_LOGOSONE_INSUFFICIENCY = {
+_PAIRED_CURRICULUM_INSUFFICIENCY = {
     "CLAIM_WITHOUT_EVIDENCE": ("missing_evidence", "provide_evidence_receipts"),
     "UNSUPPORTED_PROMOTION": ("missing_promotion_evidence", "provide_green_gate_and_push"),
     "COMPLETION_BY_DEFERRAL": ("deferred_required_work", "resolve_blockers_or_required_artifact"),
@@ -52,10 +50,10 @@ _LOGOSONE_INSUFFICIENCY = {
 }
 
 
-def _logosone_grade(row: dict[str, Any]) -> str:
+def _paired_curriculum_grade(row: dict[str, Any]) -> str:
     """Grade band v0.1: G4 is the base claim/evidence record; more captured signals
     lift it to G5/G6. G3 is a bare single-label record; G7 (long-horizon historical
-    doctrine lineage) is reserved for historical records, not the Factory Dojo."""
+    doctrine lineage) is reserved for historical records, not the Curated Dataset."""
     families = (row.get("signal_coverage") or {}).get("families") if isinstance(row.get("signal_coverage"), dict) else {}
     families = families if isinstance(families, dict) else {}
     non_missing = [name for name, info in families.items() if isinstance(info, dict) and info.get("status") in ("partial", "present")]
@@ -72,32 +70,32 @@ def _logosone_grade(row: dict[str, Any]) -> str:
     return "G3"
 
 
-def build_logosone_block(row: dict[str, Any], incident: str, pair_status_by_family: dict[str, str]) -> dict[str, Any]:
-    """Build the internal-only LogosOne curriculum envelope for one exported row.
+def build_paired_curriculum_block(row: dict[str, Any], incident: str, pair_status_by_family: dict[str, str]) -> dict[str, Any]:
+    """Build the restricted-use PairedCurriculum curriculum envelope for one exported row.
     pair_id is deterministic (family-based); sign/anchors/spine/insufficiency are
     mapped from the label. No positive counterexample is fabricated -- pair_status
     reflects whether the complementary sign actually exists in the export."""
-    sign, anchors = _LOGOSONE_LABEL_MAP.get(incident, ("-", []))
-    family = _LOGOSONE_FAMILY.get(incident, incident.lower())
-    spine = list(_LOGOSONE_SPINE.get(incident, ["claim", "check_evidence", "detect_gap", "block_or_repair"]))
+    sign, anchors = _PAIRED_CURRICULUM_LABEL_MAP.get(incident, ("-", []))
+    family = _PAIRED_CURRICULUM_FAMILY.get(incident, incident.lower())
+    spine = list(_PAIRED_CURRICULUM_SPINE.get(incident, ["claim", "check_evidence", "detect_gap", "block_or_repair"]))
     correction = as_dict(row.get("human_correction_lineage"))
-    if correction.get("correction_source") in ("founder_override", "human_review"):
-        spine = ["founder_correction", "rule_update", "future_guardrail"]
+    if correction.get("correction_source") in ("owner_override", "human_review"):
+        spine = ["owner_correction", "rule_update", "future_guardrail"]
     if sign == "+":
         insufficiency = {"kind": None, "repair_target": None}
     else:
-        kind, repair_target = _LOGOSONE_INSUFFICIENCY.get(incident, (None, None))
+        kind, repair_target = _PAIRED_CURRICULUM_INSUFFICIENCY.get(incident, (None, None))
         insufficiency = {"kind": kind, "repair_target": repair_target}
     return {
-        "schema_version": "sf.logosone_curriculum.v0.1",
-        "pair_id": "logosone-pair-" + family,
+        "schema_version": "sf.paired_curriculum_curriculum.v0.1",
+        "pair_id": "paired_curriculum-pair-" + family,
         "pair_status": pair_status_by_family.get(family, "unpaired"),
         "sign": sign,
-        "grade": _logosone_grade(row),
+        "grade": _paired_curriculum_grade(row),
         "lang": "EN",
         "anchors": list(anchors),
         "workflow_spine": spine,
         "insufficiency": insufficiency,
         "overlay": {"kind": "NONE", "notes": None},
-        "meta": {"curriculum": "LogosOne", "rights_scope": "internal_only", "source": "factory_dojo"},
+        "meta": {"curriculum": "PairedCurriculum", "rights_scope": "restricted_use", "source": "curated_dataset"},
     }

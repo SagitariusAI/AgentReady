@@ -1,10 +1,14 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from agent_data_foundry_lib.dataset_card import (
-    CERBERUS_LABEL_TAXONOMY,
+    CLAIM_EVIDENCE_LABEL_TAXONOMY,
     corpus_provenance_breakdown,
     dataset_card_gate,
     emit_dataset_card,
@@ -13,8 +17,8 @@ from agent_data_foundry_lib.dataset_card import (
 )
 from agent_data_foundry_lib.gold_corpus import gold_jsonl_path
 from agent_data_foundry_lib.io_jsonl import append_jsonl
-from agent_data_foundry_lib.paths import cerberus_release_root
-from agent_data_foundry_lib.schemas import CERBERUS_REQUIRED_LABELS
+from agent_data_foundry_lib.paths import claim_evidence_release_root
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_REQUIRED_LABELS
 
 
 def _seed_gold(root: Path) -> None:
@@ -26,9 +30,9 @@ def _seed_gold(root: Path) -> None:
 
 
 def test_label_taxonomy_definitions_stable():
-    assert set(CERBERUS_LABEL_TAXONOMY) == set(CERBERUS_REQUIRED_LABELS)
-    assert CERBERUS_LABEL_TAXONOMY["SUPPORTED_CLAIM"]["gold_verdict"] == "SAFE"
-    assert all(CERBERUS_LABEL_TAXONOMY[lbl]["gold_verdict"] == "BLOCK" for lbl in CERBERUS_LABEL_TAXONOMY if lbl != "SUPPORTED_CLAIM")
+    assert set(CLAIM_EVIDENCE_LABEL_TAXONOMY) == set(CLAIM_EVIDENCE_REQUIRED_LABELS)
+    assert CLAIM_EVIDENCE_LABEL_TAXONOMY["SUPPORTED_CLAIM"]["gold_verdict"] == "SAFE"
+    assert all(CLAIM_EVIDENCE_LABEL_TAXONOMY[lbl]["gold_verdict"] == "BLOCK" for lbl in CLAIM_EVIDENCE_LABEL_TAXONOMY if lbl != "SUPPORTED_CLAIM")
 
 
 def test_corpus_provenance_breakdown_counts():
@@ -45,11 +49,11 @@ def test_corpus_provenance_breakdown_counts():
 
 def test_emit_label_taxonomy_writes_required_minimums(tmp_path: Path):
     result = emit_label_taxonomy(tmp_path)
-    payload = json.loads((cerberus_release_root(tmp_path) / "label_taxonomy.json").read_text(encoding="utf-8"))
+    payload = json.loads((claim_evidence_release_root(tmp_path) / "label_taxonomy.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "agentready.data_foundry.label_taxonomy.v1"
-    assert payload["required_minimums"] == CERBERUS_REQUIRED_LABELS
-    assert set(payload["labels"]) == set(CERBERUS_LABEL_TAXONOMY)
-    assert result["labels"] == list(CERBERUS_LABEL_TAXONOMY)
+    assert payload["required_minimums"] == CLAIM_EVIDENCE_REQUIRED_LABELS
+    assert set(payload["labels"]) == set(CLAIM_EVIDENCE_LABEL_TAXONOMY)
+    assert result["labels"] == list(CLAIM_EVIDENCE_LABEL_TAXONOMY)
 
 
 def test_emit_dataset_card_discloses_provenance(tmp_path: Path):
@@ -57,13 +61,13 @@ def test_emit_dataset_card_discloses_provenance(tmp_path: Path):
     report = emit_dataset_card(tmp_path)
     assert report["schema_version"] == "agentready.data_foundry.dataset_card.v1"
     assert report["total_records"] == 3 and report["natural_records"] == 1 and report["controlled_records"] == 2
-    card = (cerberus_release_root(tmp_path) / "dataset_card.md").read_text(encoding="utf-8")
+    card = (claim_evidence_release_root(tmp_path) / "dataset_card.md").read_text(encoding="utf-8")
     for marker in ("## Provenance", "CONTROLLED_CASE", "SUPPORTED_CLAIM", "Natural"):
         assert marker in card
 
 
 def test_gates_require_emitted_artifacts(tmp_path: Path):
-    rr = cerberus_release_root(tmp_path)
+    rr = claim_evidence_release_root(tmp_path)
     assert dataset_card_gate(rr)[0] is False  # not emitted
     assert label_taxonomy_gate(rr)[0] is False
     _seed_gold(tmp_path)
@@ -81,5 +85,5 @@ def test_reexported_identity():
     assert adf.emit_label_taxonomy is emit_label_taxonomy
     assert adf.dataset_card_gate is dataset_card_gate
     assert adf.label_taxonomy_gate is label_taxonomy_gate
-    assert adfl.CERBERUS_LABEL_TAXONOMY is CERBERUS_LABEL_TAXONOMY
-    assert adf.CERBERUS_REQUIRED_LABELS is CERBERUS_REQUIRED_LABELS  # now from schemas, re-imported centrally
+    assert adfl.CLAIM_EVIDENCE_LABEL_TAXONOMY is CLAIM_EVIDENCE_LABEL_TAXONOMY
+    assert adf.CLAIM_EVIDENCE_REQUIRED_LABELS is CLAIM_EVIDENCE_REQUIRED_LABELS  # now from schemas, re-imported centrally

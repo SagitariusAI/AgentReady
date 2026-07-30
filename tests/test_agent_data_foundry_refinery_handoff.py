@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import hashlib
@@ -17,7 +21,7 @@ def test_refinery_handoff_is_immutable_and_never_claims_final(tmp_path: Path) ->
         "train_count": 9,
         "heldout_count": 3,
         "train_heldout_no_overlap": True,
-        "all_internal_only": True,
+        "all_restricted_use": True,
         "broad_label_readiness": True,
         "label_coverage": {"SUPPORTED_CLAIM": {"train": 9, "heldout": 3, "total": 12}},
     }
@@ -62,7 +66,7 @@ def test_refinery_handoff_blocks_partial_label_coverage(tmp_path: Path) -> None:
             "train_count": 1,
             "heldout_count": 0,
             "train_heldout_no_overlap": True,
-            "all_internal_only": True,
+            "all_restricted_use": True,
             "broad_label_readiness": False,
             "unsupported_labels": ["VAULT_CODE_CONFUSION"],
             "heldout_unsupported_labels": ["VAULT_CODE_CONFUSION"],

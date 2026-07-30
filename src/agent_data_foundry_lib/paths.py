@@ -1,15 +1,8 @@
-"""Shared low-level foundation for the Agent Data Foundry: path roots, run identity, and
-git-commit provenance.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-These are the primitives that belong to no single Cerberus subsystem — the Factory home, the
-data-foundry report and release path roots, the run-id / release-id stamps, and the best-effort
-HEAD-sha provenance helper. They have no intra-foundry dependencies (stdlib + the schemas
-product-id constant only), so every subsystem leaf and the central module can import them without
-a cycle. Extracting them here (Phase N) removes the last lazy back-imports of `_current_git_commit`
-from eval_gate / training_export and stops `report_data_foundry_path` / `cerberus_release_root` /
-`AGENTREADY_HOME` from being defined centrally. Paths, the env-home default, the run-id formats, and
-the git-sha behavior are preserved byte-for-byte from the pre-split module.
-"""
+"""Shared low-level foundation for the Agent Data Foundry: path roots, run identity, and git-commit provenance."""
 from __future__ import annotations
 
 import os
@@ -17,7 +10,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from agent_data_foundry_lib.schemas import CERBERUS_PRODUCT_ID
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_PRODUCT_ID
 
 AGENTREADY_HOME = Path(os.environ.get("AGENTREADY_HOME") or Path.home() / ".agentready")
 
@@ -34,7 +27,7 @@ def report_data_foundry_path(root: Path, name: str) -> Path:
     return root / "reports" / "data-foundry" / name
 
 
-def cerberus_release_root(root: Path, product_id: str = CERBERUS_PRODUCT_ID) -> Path:
+def claim_evidence_release_root(root: Path, product_id: str = CLAIM_EVIDENCE_PRODUCT_ID) -> Path:
     return root / "data" / "training-library" / "40_release_ready" / product_id
 
 

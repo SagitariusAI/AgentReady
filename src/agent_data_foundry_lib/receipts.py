@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared receipt-domain primitives for the Agent Data Foundry.
 
 The two things both the label-mining cluster and the receipt-export / build pipeline need from

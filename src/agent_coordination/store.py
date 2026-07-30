@@ -1,8 +1,8 @@
-"""Coordination store init — port of PowerShell `Initialize-AgentState` + `Add-AgentLocalGitExclude`
-(`bin/agent-coordination-lib.ps1` L57-159). Creates the shared per-repo store (9 subdirs), the local
-`.agent-state/pointer.json`, the READMEs, and registers the machine-local footprint in
-`.git/info/exclude`. Resolves the store path via the neutral `agent_runtime_paths` (byte-identical to
-PowerShell), so Python and PowerShell write the same store."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for store."""
 from __future__ import annotations
 
 import subprocess
@@ -76,14 +76,14 @@ def ensure_state(repo: str | Path | None = None) -> Path:
     git exclude.
     """
     repo_root = resolve_repo(repo)
-    # FACTORY-ANOMALY-20260620-claim-helper-path-misparse: reject a FILE masquerading as the repo
+    # regression-path-misparse: reject a FILE masquerading as the repo
     # root (e.g. a space-separated `-Paths a b c` value spilling into the wrapper's positional
     # `-Repo`). Without this guard, mkdir('.agent-state') under a file crashed mid-init and no
     # coordination task record was written — a silent auditability gap.
     if repo_root.exists() and not repo_root.is_dir():
         raise NotADirectoryError(
             f"repo root must be a directory, got a file: {repo_root}. "
-            "A file path likely leaked into --repo (or the PowerShell -Repo positional). "
+            "A file path likely leaked into the repository argument. "
             "Pass the repo with --repo <dir>; pass files via --paths as a comma-joined list "
             "or an explicit array (not space-separated positional values)."
         )

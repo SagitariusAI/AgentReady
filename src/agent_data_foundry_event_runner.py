@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import argparse
@@ -9,10 +13,10 @@ from typing import Any
 
 from agent_data_foundry import build_data_foundry, harvest_coordination_records, now_utc
 from agent_data_foundry_lib.capture_events import harvest_capture_events
-from agent_data_foundry_lib.dojo_build import build_inhouse_dojo
-from agent_data_foundry_lib.eval_gate import cerberus_sentinel_baseline_eval
+from agent_data_foundry_lib.curated_dataset_build import build_curated_dataset
+from agent_data_foundry_lib.eval_gate import claim_evidence_sentinel_baseline_eval
 from agent_data_foundry_lib.refinery_handoff import package_refinery_candidate
-from agent_data_foundry_lib.training_export import export_cerberus_sentinel_training
+from agent_data_foundry_lib.training_export import export_claim_evidence_sentinel_training
 
 TERMINAL_EVENT_TYPES = {
     "handoff",
@@ -67,14 +71,14 @@ def _latest_receipt_mtime(coordination_root: Path) -> float:
 def _run_internal_training_pipeline(root: Path, *, task_id: str = "", generated_at: str | None = None) -> dict[str, Any]:
     """Materialize current Gold into a policy-gated, internal training export.
 
-    This is deliberately additive to the sealed Cerberus release. It rebuilds the
-    mutable internal Dojo/export/eval views from current Gold and never writes to
+    This is deliberately additive to the sealed ClaimEvidence release. It rebuilds the
+    mutable internal Dataset/export/eval views from current Gold and never writes to
     ``40_release_ready`` or performs model training/promotion.
     """
     try:
-        dojo = build_inhouse_dojo(root)
-        training_export = export_cerberus_sentinel_training(root)
-        baseline_eval = cerberus_sentinel_baseline_eval(root)
+        dataset = build_curated_dataset(root)
+        training_export = export_claim_evidence_sentinel_training(root)
+        baseline_eval = claim_evidence_sentinel_baseline_eval(root)
         refinery_candidate = package_refinery_candidate(
             root,
             training_export,
@@ -90,12 +94,12 @@ def _run_internal_training_pipeline(root: Path, *, task_id: str = "", generated_
         }
 
     checks = {
-        "dojo_inhouse_ready": dojo.get("status") == "INHOUSE_READY",
-        "training_export_inhouse_ready": training_export.get("status") == "INHOUSE_READY",
+        "dataset_curated_ready": dataset.get("status") == "CURATED_READY",
+        "training_export_curated_ready": training_export.get("status") == "CURATED_READY",
         "broad_label_readiness": training_export.get("broad_label_readiness") is True,
         "export_readback_matches": training_export.get("readback_matches") is True,
         "train_heldout_no_overlap": training_export.get("train_heldout_no_overlap") is True,
-        "all_internal_only": training_export.get("all_internal_only") is True,
+        "all_restricted_use": training_export.get("all_restricted_use") is True,
         "no_model_training_performed": training_export.get("model_training_performed") is False
         and baseline_eval.get("model_training_performed") is False,
         "baseline_evaluated": baseline_eval.get("status") == "EVALUATED",
@@ -113,7 +117,7 @@ def _run_internal_training_pipeline(root: Path, *, task_id: str = "", generated_
     return {
         "status": status,
         "checks": checks,
-        "dojo": dojo,
+        "dataset": dataset,
         "training_export": training_export,
         "baseline_eval": baseline_eval,
         "refinery_candidate": refinery_candidate,
@@ -167,20 +171,20 @@ def _write_report(root: Path, payload: dict[str, Any]) -> None:
         )
     pipeline = payload.get("internal_training_pipeline") or {}
     if pipeline:
-        dojo = pipeline.get("dojo") or {}
+        dataset = pipeline.get("dataset") or {}
         training_export = pipeline.get("training_export") or {}
         baseline_eval = pipeline.get("baseline_eval") or {}
         refinery_candidate = pipeline.get("refinery_candidate") or {}
         lines.extend(
             [
                 f"- Internal training pipeline: `{pipeline.get('status', 'UNKNOWN')}`",
-                f"- Dojo rows: `{dojo.get('rows_emitted', 0)}` / `{dojo.get('rows_seen', 0)}`",
+                f"- Dataset rows: `{dataset.get('rows_emitted', 0)}` / `{dataset.get('rows_seen', 0)}`",
                 f"- Training rows: `{training_export.get('train_count', 0)}`",
                 f"- Heldout rows: `{training_export.get('heldout_count', 0)}`",
                 f"- Baseline evaluated rows: `{baseline_eval.get('evaluated_rows', 0)}`",
                 f"- Canonical refinery handoff: `{refinery_candidate.get('status', 'UNKNOWN')}`",
                 f"- Final dataset emitted: `{str(refinery_candidate.get('final_dataset_emitted', False)).lower()}`",
-                "- Sealed Cerberus release mutated: `false`",
+                "- Sealed ClaimEvidence release mutated: `false`",
             ]
         )
     md_path.parent.mkdir(parents=True, exist_ok=True)

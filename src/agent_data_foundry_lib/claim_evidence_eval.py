@@ -1,12 +1,16 @@
-"""Cerberus claim-evidence eval: deterministic train/heldout split + provider-neutral baseline.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-The eval half of the Cerberus pipeline (distinct from the Sentinel SFT eval in ``eval_gate``):
-``build_cerberus_eval_split`` carves a key-stable, seed-fixed train/heldout split from the Gold
-corpus (heldout is natural-majority, never controlled-dominated), ``cerberus_baseline_eval`` scores
+"""ClaimEvidence claim-evidence eval: deterministic train/heldout split + provider-neutral baseline.
+
+The eval half of the ClaimEvidence pipeline (distinct from the Sentinel SFT eval in ``eval_gate``):
+``build_claim_evidence_eval_split`` carves a key-stable, seed-fixed train/heldout split from the Gold
+corpus (heldout is natural-majority, never controlled-dominated), ``claim_evidence_baseline_eval`` scores
 the heldout set with a deterministic provider-neutral baseline (verdict/label accuracy, macro-F1,
 per-label PRF, false-SAFE/BLOCK rates, natural-vs-controlled subset accuracy), and the two gates
-(``cerberus_eval_split_gate`` / ``cerberus_baseline_eval_gate``) check those artifacts for the
-release gate. The split seed (``CERBERUS_EVAL_SPLIT_SEED``) and heldout fraction live here.
+(``claim_evidence_eval_split_gate`` / ``claim_evidence_baseline_eval_gate``) check those artifacts for the
+release gate. The split seed (``CLAIM_EVIDENCE_EVAL_SPLIT_SEED``) and heldout fraction live here.
 
 Clean leaf: imports ``gold_corpus`` (the corpus path), ``io_jsonl``, the ``paths`` foundation, and
 ``schemas`` (product id + required-label minimums) -- no back-import to agent_data_foundry. The split
@@ -21,11 +25,11 @@ from typing import Any
 
 from agent_data_foundry_lib.gold_corpus import gold_jsonl_path
 from agent_data_foundry_lib.io_jsonl import append_jsonl, as_dict, now_utc, read_json, read_jsonl, rel, write_json
-from agent_data_foundry_lib.paths import AGENTREADY_HOME, cerberus_release_root, report_data_foundry_path
-from agent_data_foundry_lib.schemas import CERBERUS_PRODUCT_ID, CERBERUS_REQUIRED_LABELS
+from agent_data_foundry_lib.paths import AGENTREADY_HOME, claim_evidence_release_root, report_data_foundry_path
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_PRODUCT_ID, CLAIM_EVIDENCE_REQUIRED_LABELS
 
-CERBERUS_EVAL_SPLIT_SEED = 424242
-CERBERUS_HELDOUT_FRACTION = 0.15
+CLAIM_EVIDENCE_EVAL_SPLIT_SEED = 424242
+CLAIM_EVIDENCE_HELDOUT_FRACTION = 0.15
 
 
 def _eval_case_id(row: dict[str, Any]) -> str:
@@ -36,11 +40,11 @@ def _row_provenance(row: dict[str, Any]) -> str:
     return str(row.get("provenance_type") or "NATURAL_RECEIPT")
 
 
-def build_cerberus_eval_split(
+def build_claim_evidence_eval_split(
     root: Path | str = AGENTREADY_HOME,
-    product_id: str = CERBERUS_PRODUCT_ID,
-    seed: int = CERBERUS_EVAL_SPLIT_SEED,
-    heldout_fraction: float = CERBERUS_HELDOUT_FRACTION,
+    product_id: str = CLAIM_EVIDENCE_PRODUCT_ID,
+    seed: int = CLAIM_EVIDENCE_EVAL_SPLIT_SEED,
+    heldout_fraction: float = CLAIM_EVIDENCE_HELDOUT_FRACTION,
 ) -> dict[str, Any]:
     """Deterministic stratified eval split.
 
@@ -50,7 +54,7 @@ def build_cerberus_eval_split(
     seed): rows are deduped by case id and canonically ordered by fingerprint
     before a seeded shuffle."""
     root = Path(root)
-    release_root = cerberus_release_root(root, product_id)
+    release_root = claim_evidence_release_root(root, product_id)
     data_root = release_root / "data"
     report_root = release_root / "reports"
     data_root.mkdir(parents=True, exist_ok=True)
@@ -127,7 +131,7 @@ def build_cerberus_eval_split(
     safe_heldout_natural = sum(1 for r in safe_heldout if _row_provenance(r) == "NATURAL_RECEIPT")
     eval_labels = {str(r.get("incident_type") or "UNKNOWN") for r in ordered}
     heldout_labels = {str(r.get("incident_type") or "UNKNOWN") for r in heldout_rows}
-    required_labels = set(CERBERUS_REQUIRED_LABELS)
+    required_labels = set(CLAIM_EVIDENCE_REQUIRED_LABELS)
     verdict_distribution: dict[str, int] = {}
     for row in ordered:
         verdict_distribution[str(row.get("verdict") or "UNKNOWN")] = verdict_distribution.get(str(row.get("verdict") or "UNKNOWN"), 0) + 1
@@ -180,7 +184,7 @@ def build_cerberus_eval_split(
     }
     manifest_path = release_root / "split_manifest.json"
     write_json(manifest_path, split_manifest)
-    write_json(report_data_foundry_path(root, "cerberus-eval-split-latest.json"), split_report)
+    write_json(report_data_foundry_path(root, "claim_evidence-eval-split-latest.json"), split_report)
 
     return {
         "total_cases": len(ordered),
@@ -193,7 +197,7 @@ def build_cerberus_eval_split(
     }
 
 
-def cerberus_eval_split_gate(release_root: Path) -> tuple[bool, str, Any]:
+def claim_evidence_eval_split_gate(release_root: Path) -> tuple[bool, str, Any]:
     data_root = release_root / "data"
     eval_path = data_root / "eval_cases.jsonl"
     expected_path = data_root / "expected_outputs.jsonl"
@@ -209,7 +213,7 @@ def cerberus_eval_split_gate(release_root: Path) -> tuple[bool, str, Any]:
     if not report:
         problems.append("split_report.json missing")
     if problems:
-        return (False, "Eval split not emitted; run build-cerberus-eval-split.", {"problems": problems})
+        return (False, "Eval split not emitted; run build-claim_evidence-eval-split.", {"problems": problems})
     report = as_dict(report)
 
     eval_rows = read_jsonl(eval_path)
@@ -284,7 +288,7 @@ def _prf(true_positive: int, false_positive: int, false_negative: int) -> dict[s
 
 
 def _norm_verdict(verdict: Any) -> str:
-    """Collapse the verdict to the binary safety decision Cerberus actually makes.
+    """Collapse the verdict to the binary safety decision ClaimEvidence actually makes.
 
     The corpus carries mixed verdict vocabularies: natural coordination rows use
     SAFE / SUSPICIOUS / NEEDS_HUMAN, controlled rows use SAFE / BLOCK. The safety
@@ -300,9 +304,9 @@ def _subset_verdict_accuracy(pairs: list[tuple[dict[str, Any], dict[str, Any]]])
     return round(correct / len(pairs), 4)
 
 
-def cerberus_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str = CERBERUS_PRODUCT_ID) -> dict[str, Any]:
+def claim_evidence_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str = CLAIM_EVIDENCE_PRODUCT_ID) -> dict[str, Any]:
     root = Path(root)
-    release_root = cerberus_release_root(root, product_id)
+    release_root = claim_evidence_release_root(root, product_id)
     report_root = release_root / "reports"
     report_root.mkdir(parents=True, exist_ok=True)
 
@@ -332,7 +336,7 @@ def cerberus_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str =
     for _, exp, _case in scored:
         verdict_vocabulary[str(exp.get("verdict"))] = verdict_vocabulary.get(str(exp.get("verdict")), 0) + 1
 
-    labels = sorted(CERBERUS_REQUIRED_LABELS)
+    labels = sorted(CLAIM_EVIDENCE_REQUIRED_LABELS)
     per_label: dict[str, Any] = {}
     f1_scores: list[float] = []
     for label in labels:
@@ -366,7 +370,7 @@ def cerberus_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str =
         "scored_on": "heldout",
         "verdict_axis": "SAFE_vs_NOT_SAFE",
         "verdict_vocabulary_in_heldout": verdict_vocabulary,
-        "split_seed": split_report.get("seed", CERBERUS_EVAL_SPLIT_SEED),
+        "split_seed": split_report.get("seed", CLAIM_EVIDENCE_EVAL_SPLIT_SEED),
         "corpus_record_count": split_report.get("total_cases", len(eval_cases)),
         "heldout_case_count": heldout_count,
         "metrics": {
@@ -389,10 +393,10 @@ def cerberus_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str =
     }
     results_path = report_root / "baseline_results.json"
     write_json(results_path, results)
-    write_json(report_data_foundry_path(root, "cerberus-baseline-eval-latest.json"), results)
+    write_json(report_data_foundry_path(root, "claim_evidence-baseline-eval-latest.json"), results)
 
     md_lines = [
-        f"# Cerberus Baseline Eval — {product_id}",
+        f"# ClaimEvidence Baseline Eval — {product_id}",
         "",
         f"Generated: {results['generated_at']}",
         "",
@@ -438,7 +442,7 @@ def cerberus_baseline_eval(root: Path | str = AGENTREADY_HOME, product_id: str =
     return results
 
 
-def cerberus_baseline_eval_gate(release_root: Path) -> tuple[bool, str, Any]:
+def claim_evidence_baseline_eval_gate(release_root: Path) -> tuple[bool, str, Any]:
     results = read_json(release_root / "reports" / "baseline_results.json")
     md_exists = (release_root / "reports" / "baseline_results.md").exists()
     problems: list[str] = []
@@ -447,7 +451,7 @@ def cerberus_baseline_eval_gate(release_root: Path) -> tuple[bool, str, Any]:
     if not md_exists:
         problems.append("baseline_results.md missing")
     if problems:
-        return (False, "Baseline eval not emitted; run cerberus-baseline-eval after the split.", {"problems": problems})
+        return (False, "Baseline eval not emitted; run claim_evidence-baseline-eval after the split.", {"problems": problems})
     results = as_dict(results)
     metrics = results.get("metrics") or {}
     required_metrics = [
@@ -465,7 +469,7 @@ def cerberus_baseline_eval_gate(release_root: Path) -> tuple[bool, str, Any]:
     if missing_metrics:
         problems.append(f"missing metrics: {missing_metrics}")
     per_label_f1 = metrics.get("per_label_f1") or {}
-    unscored = [label for label in CERBERUS_REQUIRED_LABELS if label not in per_label_f1]
+    unscored = [label for label in CLAIM_EVIDENCE_REQUIRED_LABELS if label not in per_label_f1]
     if unscored:
         problems.append(f"labels not scored: {unscored}")
     for field in ("split_seed", "corpus_record_count", "heldout_case_count"):

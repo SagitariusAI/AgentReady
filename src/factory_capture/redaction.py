@@ -1,8 +1,12 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Local, deterministic secret redaction for captured logs and event payloads.
 
 redact_text returns the redacted string plus findings (kind + count only — never the secret).
 Stored logs and event JSON are redacted before they are written; the live terminal stream is left
-raw (it is the founder's own screen, not stored). Intentionally conservative, not exhaustive: the
+raw (it is the owner's own screen, not stored). Intentionally conservative, not exhaustive: the
 goal is "don't persist obvious secrets raw", not a full DLP engine. No imports from siblings (leaf)."""
 from __future__ import annotations
 

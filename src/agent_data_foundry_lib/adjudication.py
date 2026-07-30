@@ -1,24 +1,8 @@
-"""Claim/evidence/status adjudication + gold-row builders for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase K1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_ADJUDICATION_CLUSTER_SPLIT_PLAN.md):
-the self-contained receipt/task/defaults adjudication cluster moved verbatim out of
-agent_data_foundry.py with **no behavior change**. The Phase-K1 plan's AST call graph showed
-this cluster is self-contained -- it references only its own functions + the lib
-(io_jsonl.now_utc, schemas.CERBERUS_SCHEMA_VERSION, source_signals.harvest_source_signals) + the
-stdlib, with **no outbound call to any central staying function** -- so it extracts as one leaf
-with no import cycle. (J1's earlier "too coupled" read was driven by a text grep counting
-`claim_evidence_alignment` / `gold_output` / `state_transition` as row-field dict keys; the AST
-shows those pure helpers have no external callers.)
-
-This module owns: the receipt and task adjudication helpers (source id / fingerprint / evidence
-profile / claim-evidence alignment / state transition / verdict), the internal-only defaults
-builders (natural_provenance_fields, commercial_safety_flags), and the gold-/silver-row builders
-(receipt_gold_row, gold_coordination_row, silver_coordination_row). The controlled-case
-generators, mining, harvest, the Dojo builder, and the training exporter stay central and call
-INTO this leaf via the re-exported names; nothing here calls back. Labels, verdicts, schema
-strings (sf.product_incident.v0.2, agentready.data_foundry.coordination_silver.v1), the
-commercial-safety defaults, and source-id/fingerprint hashing are all unchanged.
-"""
+"""Claim/evidence/status adjudication + gold-row builders for the Agent Data Foundry."""
 from __future__ import annotations
 
 import hashlib
@@ -27,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_data_foundry_lib.io_jsonl import now_utc
-from agent_data_foundry_lib.schemas import CERBERUS_SCHEMA_VERSION
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_SCHEMA_VERSION
 from agent_data_foundry_lib.source_signals import harvest_source_signals
 from agent_workflow_lanes import classify_workflow_lane
 
@@ -239,11 +223,11 @@ def receipt_gold_row(
     source_id = receipt_source_id(receipt, label)
     profile = receipt_evidence_profile(receipt)
     return {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": receipt_fingerprint(receipt, label),
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "claim_evidence_alignment",
         "dataset_readiness_level": "DRL-3",
         **natural_provenance_fields(),
@@ -314,11 +298,11 @@ def state_transition(task: dict[str, Any], verdict: str, incident_type: str) -> 
     }
 
 
-# Real human/founder correction fields carried verbatim from a task onto the gold
+# Real human/owner correction fields carried verbatim from a task onto the gold
 # row (only when explicitly present) so build_human_correction_lineage can move
 # correction_source off machine_adjudication. Never inferred from a blocker.
 HUMAN_CORRECTION_CARRY_FIELDS = (
-    "founder_override_reason",
+    "owner_override_reason",
     "human_correction",
     "review_decision",
     "correction_applied",
@@ -341,11 +325,11 @@ def gold_coordination_row(source_id: str, fingerprint: str, task: dict[str, Any]
     profile = task_evidence_profile(task)
     workflow_lane, workflow_lane_source = classify_workflow_lane(task)
     row = {
-        "schema_version": CERBERUS_SCHEMA_VERSION,
+        "schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
         "source_id_hash": hashlib.sha256(source_id.encode("utf-8")).hexdigest(),
         "fingerprint": fingerprint,
         "family": "software_factory_coordination_governance",
-        "dataset_family": "cerberus_sentinel",
+        "dataset_family": "claim_evidence_sentinel",
         "training_target": "claim_evidence_alignment",
         "workflow_lane": workflow_lane,
         "workflow_lane_source": workflow_lane_source,

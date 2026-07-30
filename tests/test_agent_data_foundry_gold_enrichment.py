@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from agent_data_foundry_test_helpers import (
@@ -74,7 +78,7 @@ def test_harvest_captures_tool_lists() -> None:
 
 
 def test_tool_trajectory_reads_tools_from_source_signals() -> None:
-    # Tools propagated onto the task -> harvested into source_signals -> Dojo.
+    # Tools propagated onto the task -> harvested into source_signals -> Dataset.
     record = {
         "incident_type": "CLAIM_WITHOUT_EVIDENCE",
         "source_signals": _signals(commands_run=["pytest -q"], selected_tools=["pytest"], available_tools=["pytest", "ruff"]),
@@ -116,7 +120,7 @@ def test_correction_lineage_machine_adjudication_is_partial() -> None:
     assert block["evidence_contradicts_claim"] is True
     assert block["future_rule"] == "Do not promote without evidence."
     # Human-specific fields stay absent -- no human corrected this, the sentinel did.
-    assert block["founder_override_reason"] is None
+    assert block["owner_override_reason"] is None
     assert block["human_correction_present"] is False
     record["human_correction_lineage"] = block
     fam = build_signal_coverage(record)["families"]["human_correction_lineage"]
@@ -135,20 +139,20 @@ def test_correction_lineage_safe_claim_has_no_correction() -> None:
     assert block["review_decision"] == "ALLOW"
 
 
-def test_correction_lineage_founder_override_is_present() -> None:
+def test_correction_lineage_owner_override_is_present() -> None:
     record = {
         "verdict": "BLOCK",
         "gold_output": {"verdict": "BLOCK", "required_action": "REJECT_PROMOTION", "model_should_learn": "x"},
-        "founder_override_reason": "Founder rejected the release: scorecard WARN unaddressed.",
+        "owner_override_reason": "Owner rejected the release: scorecard WARN unaddressed.",
         "claim_evidence_alignment": {"evidence_contradicts_claim": True},
     }
     block = build_human_correction_lineage(record)
-    assert block["correction_source"] == "founder_override"
+    assert block["correction_source"] == "owner_override"
     assert block["human_correction_present"] is True
-    assert "scorecard" in block["founder_override_reason"]
+    assert "scorecard" in block["owner_override_reason"]
     record["human_correction_lineage"] = block
     fam = build_signal_coverage(record)["families"]["human_correction_lineage"]
-    assert fam["status"] == "present"  # review_decision + correction_applied + human_correction + founder_override_reason
+    assert fam["status"] == "present"  # review_decision + correction_applied + human_correction + owner_override_reason
 
 
 def test_correction_lineage_missing_without_claim_evidence() -> None:
@@ -160,24 +164,24 @@ def test_correction_lineage_missing_without_claim_evidence() -> None:
     assert fam["status"] == "missing"
 
 
-def test_gold_row_carries_founder_override_to_correction_source() -> None:
+def test_gold_row_carries_owner_override_to_correction_source() -> None:
     task = {
         "id": "t", "status": "handoff", "title": "x", "blockers": [],
-        "founder_override_reason": "Founder rejected the release: scorecard WARN unaddressed.",
+        "owner_override_reason": "Owner rejected the release: scorecard WARN unaddressed.",
         "future_rule": "Never claim release-ready with an unaddressed WARN.",
         "correction_applied": True,
     }
     row = gold_coordination_row("sid", "fp", task)
-    assert row["founder_override_reason"] == task["founder_override_reason"]
+    assert row["owner_override_reason"] == task["owner_override_reason"]
     block = build_human_correction_lineage(row)
-    assert block["correction_source"] == "founder_override"
+    assert block["correction_source"] == "owner_override"
     assert block["future_rule"] == task["future_rule"]  # explicit rule wins
     assert block["human_correction_present"] is True
     fam = build_signal_coverage({**row, "human_correction_lineage": block})["families"]["human_correction_lineage"]
-    assert fam["status"] == "present"  # review_decision + correction_applied + human_correction + founder_override
+    assert fam["status"] == "present"  # review_decision + correction_applied + human_correction + owner_override
 
 
-def test_human_correction_without_founder_is_human_review() -> None:
+def test_human_correction_without_owner_is_human_review() -> None:
     record = {
         "verdict": "BLOCK",
         "gold_output": {"verdict": "BLOCK", "required_action": "REJECT_PROMOTION", "model_should_learn": "x"},
@@ -193,7 +197,7 @@ def test_human_correction_without_founder_is_human_review() -> None:
 def test_gold_row_without_human_field_stays_machine() -> None:
     task = {"id": "t2", "status": "handoff", "title": "y", "blockers": []}
     row = gold_coordination_row("sid", "fp", task)
-    assert "founder_override_reason" not in row  # never inferred from a normal task
+    assert "owner_override_reason" not in row  # never inferred from a normal task
     assert "human_correction" not in row
     block = build_human_correction_lineage(row)
     assert block["correction_source"] == "machine_adjudication"

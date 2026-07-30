@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -17,7 +21,7 @@ from agent_data_foundry import (
 )
 
 
-def test_mine_supported_claims_adds_positive_cerberus_examples_from_strong_receipts(tmp_path: Path) -> None:
+def test_mine_supported_claims_adds_positive_claim_evidence_examples_from_strong_receipts(tmp_path: Path) -> None:
     write_receipt(tmp_path, "safe", base_receipt(receipt_id="safe-001"))
     write_receipt(
         tmp_path,
@@ -98,10 +102,10 @@ def test_mine_misdirected_verification_labels_wrong_repo_or_harness_tests(tmp_pa
         base_receipt(
             receipt_id="misdirected-001",
             repo=r"C:\ExampleProject",
-            intent="Verify Sovereign Forge runtime behavior.",
+            intent="Verify example service runtime behavior.",
             summary="Ran tests for the Forge product.",
-            outcome="Sovereign Forge runtime is verified.",
-            commands_run=["pytest D:\\AgentReady\\tests\\test_harness.py"],
+            outcome="example service runtime is verified.",
+            commands_run=["pytest D:\\ExampleProject\\tests\\test_harness.py"],
             evidence=[
                 {"path": r"C:\Factory\tests\test_harness.py", "status": "pass", "meaning": "harness test passed"},
             ],

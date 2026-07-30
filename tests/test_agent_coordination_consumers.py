@@ -1,4 +1,8 @@
-"""Focused tests for the coordination-lib consumer ports: history-search + version-record (Phase 7f)."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for test agent coordination consumers."""
 from __future__ import annotations
 
 import json

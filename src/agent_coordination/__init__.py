@@ -1,13 +1,8 @@
-"""Agent Coordination — the Python coordination engine (PS->Python migration).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Foundation layer: depends only on `agent_runtime_paths` + stdlib (no dependency on any Factory consumer
-such as `agent_report_submit_lib`, and intentionally not on the `factory_capture` runtime — a governance
-foundation must not be load-bearing on a runtime). Ports `bin/agent-coordination-lib.ps1`, writing the
-same on-disk JSON/JSONL coordination store (proven by the parity smokes).
-
-Phase 1A surface (store/tasks/events). Path/conflict logic, locks, quality gates, and chat land in
-1B/1C; the CLI + thin PowerShell wrappers in 1E-1G.
-"""
+"""Public support for   init  ."""
 from __future__ import annotations
 
 from agent_coordination.chat import publish_chat, show_unread

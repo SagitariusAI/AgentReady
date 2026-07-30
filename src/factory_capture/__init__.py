@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Software Factory Capture Runtime v0.1 — local-first, deterministic work capture.
 
 Records real work (commands, git state, logs, receipts) as it happens, with no dependency on

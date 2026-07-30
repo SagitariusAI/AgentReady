@@ -1,4 +1,8 @@
-"""Unit tests for the agent-ci-local Python port (PS->Python migration Phase 3, shadow)."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for test agent ci local."""
 from __future__ import annotations
 
 import json

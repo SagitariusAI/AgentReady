@@ -1,36 +1,31 @@
-"""Repo bootstrap -- Python port of `bin/agent-bootstrap-repo.ps1` (PS->Python Phase 7).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Scaffolds a repo for the AgentReady stack: writes the `<!-- AGENTREADY:START/END -->` marked block (the
-router/coordination instructions) into AGENTS.md + CLAUDE.md, appends the two machine-local `.gitignore`
-lines, copies the Forgejo CI workflow + release checklist from the templates, writes `.agentready.yaml`,
-and runs `agent-coordination-init`. Idempotent: an existing marked block is left as-is unless `-Force`;
-template/yaml copies only fill gaps unless `-Force`.
+"""Initialize a repository with portable AgentReady guidance and empty local state.
 
-The marked block + yaml are CRLF-joined (`[Environment]::NewLine`) and written verbatim (`newline=""`) to
-match the PowerShell output (the BOM PowerShell 5.1 added is dropped, matching the rest of the migration).
-`agent-coordination-init` is an injectable seam. Parity:
-`smoke/agent_bootstrap_repo_parity_smoke.py` compares the generated files against the real PS bootstrap on
-a temp repo.
+The bootstrap writes an idempotent instruction block to ``AGENTS.md``, adds
+generated-state exclusions to ``.gitignore``, creates a provider-neutral
+``.agentready.yaml``, and invokes the installed coordination initializer when
+available. It never copies credentials, contacts a remote service, or starts a
+listener.
 """
 from __future__ import annotations
 
 import argparse
 import os
 import re
-import shutil
 import subprocess
 from pathlib import Path
 
-AGENTREADY_HOME = Path(os.environ.get("AGENTREADY_HOME") or Path(__file__).resolve().parents[1])
-TEMPLATE_ROOT = AGENTREADY_HOME / "templates" / "repo"
 MARKER_START = "<!-- AGENTREADY:START -->"
 MARKER_END = "<!-- AGENTREADY:END -->"
-NEWLINE = "\r\n"  # [Environment]::NewLine on Windows
+NEWLINE = os.linesep
 
 ROUTER_LINES = [
     "",
-    "Founder-claimed project repos are strict-entry workspaces. No model may perform meaningful repo work "
-    "without logging clear intent in AgentReady first.",
+    "Use AgentReady before meaningful repository work so intent, ownership, evidence, and handoffs remain "
+    "auditable.",
     "",
     "Meaningful work includes broad repo reads, code edits, tests, reviews, dependency changes, runtime "
     "checks, packaging, release-readiness work, cleanup, architecture analysis, and handoffs.",
@@ -38,8 +33,7 @@ ROUTER_LINES = [
     "Before broad repo reads, code edits, dependency changes, security work, packaging, release-readiness "
     "claims, or full-stack delivery work:",
     "",
-    "```powershell",
-    ". D:\\AgentReady\\bin\\agent-tool-env.ps1",
+    "```text",
     'agent-tool-router -Task "<user request>" -Mode Plan',
     "```",
     "",
@@ -51,17 +45,17 @@ ROUTER_LINES = [
     "agent-release-scorecard",
     "```",
     "",
-    "For multi-agent, large-repo, or founder-claimed project work:",
+    "For multi-agent or large-repository work:",
     "",
     "```powershell",
     "agent-coordination-init",
     "agent-task-status",
     'agent-tool-router -Task "<what this model intends to do>" -Mode Plan',
-    'agent-task-start -Title "<clear task title>" -Agent "<codex|claude|forge|other>" -Summary "<intent '
-    'and current scope>" -Paths <paths> -CreateWorktree',
+    'agent-task-start -Title "<clear task title>" -Agent "<agent-id>" -Summary "<intent and current '
+    'scope>" -Paths <paths> -CreateWorktree',
     "agent-conflict-check -TaskId <task-id>",
-    'agent-task-handoff -TaskId <task-id> -Operator "<windows-user>" -Summary "<what changed/current '
-    'state>" -Evidence "<interpreted test/evidence summary>" -Next "<next safe action or none remains>"',
+    'agent-task-handoff -TaskId <task-id> -Operator "<operator-id>" -Summary "<what changed/current state>" '
+    '-Evidence "<interpreted test/evidence summary>" -Next "<next safe action or none remains>"',
     "```",
     "",
     "Do not silently skip relevant AgentReady tools. If a relevant tool was not run, state why. Use "
@@ -71,14 +65,12 @@ ROUTER_LINES = [
     "evidence quality, dirty tree posture, blockers, live/runtime state, and next safe actions before "
     "handoff or token exhaustion.",
     "",
-    "Normal AgentReady coordination commands enforce quality gates: task starts require a meaningful "
-    "summary and claimed paths; handoffs require summary, claimed paths, interpreted evidence, and next "
-    "action. Use -AllowWeak only for an explicitly weak/emergency record and say why it is weak.",
+    "Coordination commands enforce quality gates: task starts require a meaningful summary and claimed "
+    "paths; handoffs require interpreted evidence and a clear next action.",
 ]
 
 AGENTREADY_YAML = NEWLINE.join([
     "version: 1",
-    "stack_index: D:\\AgentReady\\AGENT_READY_STACK_INDEX.md",
     "router: agent-tool-router",
     "required_final_audit: agent-release-scorecard",
     "coordination:",
@@ -121,13 +113,6 @@ def set_marked_block(path: Path, title: str, lines: list[str], force: bool = Fal
         path.write_text(new_text, encoding="utf-8", newline="")
 
 
-def _copy_if_gap(src: Path, dest: Path, force: bool) -> None:
-    if force or not dest.exists():
-        if src.exists():
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dest)
-
-
 def _default_coordination_init(repo: Path) -> None:
     try:
         subprocess.run(["agent-coordination-init", "-Repo", str(repo)], capture_output=True, text=True,
@@ -138,17 +123,18 @@ def _default_coordination_init(repo: Path) -> None:
 
 def bootstrap(repo: Path, *, force: bool = False, template_root: Path | None = None,
               coordination_init_fn=None) -> dict:
+    """Create portable configuration and empty coordination state in ``repo``.
+
+    ``template_root`` remains accepted for backward API compatibility but is
+    intentionally unused: public bootstrap output is generated locally.
+    """
+    del template_root
     repo = Path(repo)
-    template_root = template_root or TEMPLATE_ROOT
     repo.mkdir(parents=True, exist_ok=True)
 
     set_marked_block(repo / "AGENTS.md", "AgentReady Local Stack", ROUTER_LINES, force=force)
-    set_marked_block(repo / "CLAUDE.md", "AgentReady Local Stack", ROUTER_LINES, force=force)
     add_unique_line(repo / ".gitignore", ".agent-reports/")
     add_unique_line(repo / ".gitignore", ".agent-state/worktrees/")
-    _copy_if_gap(template_root / "forgejo-actions-agent-ci.yml",
-                 repo / ".forgejo" / "workflows" / "agent-ci.yml", force)
-    _copy_if_gap(template_root / "agent-release-checklist.md", repo / "agent-release-checklist.md", force)
 
     yaml_path = repo / ".agentready.yaml"
     if force or not yaml_path.exists():
@@ -156,8 +142,7 @@ def bootstrap(repo: Path, *, force: bool = False, template_root: Path | None = N
 
     (coordination_init_fn or _default_coordination_init)(repo)
     return {"repo": str(repo),
-            "files": ["AGENTS.md", "CLAUDE.md", ".gitignore", ".forgejo/workflows/agent-ci.yml",
-                      "agent-release-checklist.md", ".agentready.yaml", ".agent-state"]}
+            "files": ["AGENTS.md", ".gitignore", ".agentready.yaml", ".agent-state"]}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -167,8 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     result = bootstrap(Path(args.repo), force=args.force)
     print(f"AgentReady repo bootstrap complete: {result['repo']}")
-    print("Added/verified AGENTS.md, CLAUDE.md, .gitignore, .forgejo/workflows/agent-ci.yml, "
-          "agent-release-checklist.md, .agentready.yaml, .agent-state")
+    print("Added/verified AGENTS.md, .gitignore, .agentready.yaml, and empty .agent-state")
     return 0
 
 

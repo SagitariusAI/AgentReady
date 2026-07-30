@@ -1,24 +1,8 @@
-"""Cerberus Sentinel baseline eval + eval/promotion gate for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase H1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the Cerberus Sentinel deterministic baseline eval and the model-agnostic evaluator +
-promotion gate moved verbatim out of agent_data_foundry.py with **no behavior change**.
-
-It is a near-leaf: it imports the sibling lib modules (io_jsonl for JSONL/report IO,
-logosone for the label->sign map, provenance for the evaluator's creator-provenance
-constants, schemas for the shared SENTINEL_TRAINING_LABELS) and the stdlib. The one
-remaining coupling is the founder-pinned `_current_git_commit`, which stays central in
-agent_data_foundry.py (shared with the still-central training exporter) and is imported
-LAZILY inside the gate (call-time, so there is no module-level import cycle). That lazy
-import is the documented remaining coupling for the eventual training-exporter slice.
-
-Behavior preserved exactly: strict-JSON validity scoring, verdict/label accuracy,
-macro-F1, per-label metrics, false-SAFE / false-BLOCK rates, critical-label recall,
-sign accuracy, grade/anchor/pair-status performance; the promotion gate defaults to
-NOT_PROMOTED, reports BASELINE_REQUIRED with no registered baseline, and PROMOTES only
-when the candidate beats the baseline with no false-SAFE regression and no critical-label
-recall regression (training loss is never accepted as evidence; no model training).
-"""
+"""ClaimEvidence Sentinel baseline eval + eval/promotion gate for the Agent Data Foundry."""
 from __future__ import annotations
 
 import json
@@ -26,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_data_foundry_lib.io_jsonl import as_dict, now_utc, read_json, read_jsonl, rel, write_json
-from agent_data_foundry_lib.logosone import _LOGOSONE_LABEL_MAP
+from agent_data_foundry_lib.paired_curriculum import _PAIRED_CURRICULUM_LABEL_MAP
 from agent_data_foundry_lib.paths import AGENTREADY_HOME, _current_git_commit
 from agent_data_foundry_lib.provenance import (
     CREATOR_PROVENANCE_SCHEMA,
@@ -36,8 +20,8 @@ from agent_data_foundry_lib.provenance import (
 from agent_data_foundry_lib.schemas import SENTINEL_TRAINING_LABELS
 
 
-def cerberus_sentinel_export_root(root: Path) -> Path:
-    return root / "data" / "training-library" / "30_curated" / "internal" / "dojo-training-exports" / "cerberus-sentinel-v0.1"
+def claim_evidence_sentinel_export_root(root: Path) -> Path:
+    return root / "data" / "training-library" / "30_curated" / "internal" / "dataset-training-exports" / "claim_evidence-sentinel-v0.1"
 
 
 def _num_or_none(value: Any) -> float | None:
@@ -86,13 +70,13 @@ def baseline_sentinel_predict(input_text: str) -> tuple[str, str]:
     return verdict, _VERDICT_DEFAULT_LABEL[verdict]
 
 
-def cerberus_sentinel_baseline_eval(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
+def claim_evidence_sentinel_baseline_eval(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
     """Eval-only (NO training/adapter/promotion). Score the exported
     heldout_eval.jsonl with a deterministic provider-neutral baseline and write the
     promotion yardstick: a future adapter may be promoted only if it beats this
     baseline WITHOUT raising false_safe_rate or regressing critical-label recall."""
     root = Path(root)
-    export_dir = cerberus_sentinel_export_root(root)
+    export_dir = claim_evidence_sentinel_export_root(root)
     out_dir = export_dir / "baseline_eval"
     out_dir.mkdir(parents=True, exist_ok=True)
     heldout = read_jsonl(export_dir / "heldout_eval.jsonl")
@@ -160,8 +144,8 @@ def cerberus_sentinel_baseline_eval(root: Path | str = AGENTREADY_HOME) -> dict[
     critical_recall = {label: per_label[label]["recall"] for label in CRITICAL_SENTINEL_LABELS if label in per_label}
 
     results = {
-        "schema_version": "sf.dojo_training_export.baseline_eval.v0.1",
-        "dataset_id": "cerberus-sentinel-v0.1",
+        "schema_version": "sf.dataset_training_export.baseline_eval.v0.1",
+        "dataset_id": "claim_evidence-sentinel-v0.1",
         "baseline_type": "deterministic_provider_neutral",
         "generated_at": now_utc(),
         "total_heldout_rows": len(heldout),
@@ -179,10 +163,10 @@ def cerberus_sentinel_baseline_eval(root: Path | str = AGENTREADY_HOME) -> dict[
         "model_training_performed": False,
     }
     write_json(out_dir / "baseline_results.json", results)
-    write_json(out_dir / "per_label_metrics.json", {"schema_version": "sf.dojo_training_export.per_label.v0.1", "generated_at": now_utc(), "per_label": per_label, "label_macro_f1": macro_f1})
-    write_json(out_dir / "confusion_matrix.json", {"schema_version": "sf.dojo_training_export.confusion.v0.1", "generated_at": now_utc(), "label_confusion": label_conf, "verdict_confusion": verdict_conf})
+    write_json(out_dir / "per_label_metrics.json", {"schema_version": "sf.dataset_training_export.per_label.v0.1", "generated_at": now_utc(), "per_label": per_label, "label_macro_f1": macro_f1})
+    write_json(out_dir / "confusion_matrix.json", {"schema_version": "sf.dataset_training_export.confusion.v0.1", "generated_at": now_utc(), "label_confusion": label_conf, "verdict_confusion": verdict_conf})
     write_json(out_dir / "eval_manifest.json", {
-        "schema_version": "sf.dojo_training_export.eval_manifest.v0.1",
+        "schema_version": "sf.dataset_training_export.eval_manifest.v0.1",
         "generated_at": now_utc(),
         "input": rel(root, export_dir / "heldout_eval.jsonl"),
         "outputs": ["baseline_results.json", "confusion_matrix.json", "per_label_metrics.json", "eval_manifest.json"],
@@ -233,8 +217,8 @@ def _coerce_prediction(prediction: Any) -> tuple[dict[str, Any], bool]:
 
 
 def _predicted_sign(pred_label: str | None, pred_verdict: str | None) -> str | None:
-    if pred_label in _LOGOSONE_LABEL_MAP:
-        return _LOGOSONE_LABEL_MAP[pred_label][0]
+    if pred_label in _PAIRED_CURRICULUM_LABEL_MAP:
+        return _PAIRED_CURRICULUM_LABEL_MAP[pred_label][0]
     if pred_verdict == "SAFE":
         return "+"
     if pred_verdict in ("BLOCK", "NEEDS_HUMAN"):
@@ -242,19 +226,19 @@ def _predicted_sign(pred_label: str | None, pred_verdict: str | None) -> str | N
     return None
 
 
-def cerberus_sentinel_eval_and_gate(
+def claim_evidence_sentinel_eval_and_gate(
     root: Path | str = AGENTREADY_HOME,
     predictions_path: str | Path | None = None,
     strict_json_threshold: float = STRICT_JSON_THRESHOLD,
 ) -> dict[str, Any]:
     """Pure-Python, runtime-independent, model-agnostic evaluator + promotion gate.
     Scores a predictions JSONL (matched by `id` to each heldout row's
-    metadata.source_id_hash) against the LogosOne-shaped heldout set, then applies
+    metadata.source_id_hash) against the PairedCurriculum-shaped heldout set, then applies
     the promotion gate against the registered baseline. Default decision is
     NOT_PROMOTED; with no baseline it is BASELINE_REQUIRED. No training, no runtime,
     no external writes."""
     root = Path(root)
-    export_dir = cerberus_sentinel_export_root(root)
+    export_dir = claim_evidence_sentinel_export_root(root)
     out_dir = export_dir / "eval"
     out_dir.mkdir(parents=True, exist_ok=True)
     heldout = read_jsonl(export_dir / "heldout_eval.jsonl")
@@ -294,7 +278,7 @@ def cerberus_sentinel_eval_and_gate(
 
     for rid, row in heldout_by_id.items():
         expected = as_dict(row.get("expected"))
-        logos = as_dict(row.get("logosone"))
+        logos = as_dict(row.get("paired_curriculum"))
         md = as_dict(row.get("metadata"))
         true_verdict = str(expected.get("verdict") or "")
         true_label = str(row.get("label") or "")
@@ -377,8 +361,8 @@ def cerberus_sentinel_eval_and_gate(
         return round(num / den, 4) if den else 0.0
 
     metrics = {
-        "schema_version": "sf.dojo_training_export.eval.v0.1",
-        "dataset_id": "cerberus-sentinel-v0.1",
+        "schema_version": "sf.dataset_training_export.eval.v0.1",
+        "dataset_id": "claim_evidence-sentinel-v0.1",
         "generated_at": now_utc(),
         "total_heldout_rows": total,
         "excluded_noninternal_rows": excluded_noninternal,
@@ -403,10 +387,10 @@ def cerberus_sentinel_eval_and_gate(
         },
     }
     write_json(out_dir / "eval_results.json", metrics)
-    write_json(out_dir / "per_label_metrics.json", {"schema_version": "sf.dojo_training_export.eval_per_label.v0.1", "generated_at": now_utc(), "per_label": per_label, "label_macro_f1": macro_f1})
-    write_json(out_dir / "confusion_matrix.json", {"schema_version": "sf.dojo_training_export.eval_confusion.v0.1", "generated_at": now_utc(), "label_confusion": label_conf, "verdict_confusion": verdict_conf})
-    write_json(out_dir / "logosone_metrics.json", {
-        "schema_version": "sf.dojo_training_export.eval_logosone.v0.1",
+    write_json(out_dir / "per_label_metrics.json", {"schema_version": "sf.dataset_training_export.eval_per_label.v0.1", "generated_at": now_utc(), "per_label": per_label, "label_macro_f1": macro_f1})
+    write_json(out_dir / "confusion_matrix.json", {"schema_version": "sf.dataset_training_export.eval_confusion.v0.1", "generated_at": now_utc(), "label_confusion": label_conf, "verdict_confusion": verdict_conf})
+    write_json(out_dir / "paired_curriculum_metrics.json", {
+        "schema_version": "sf.dataset_training_export.eval_paired_curriculum.v0.1",
         "generated_at": now_utc(),
         "sign_accuracy": metrics["sign_accuracy"],
         "grade_performance": {g: {"accuracy": _rate(v["correct"], v["support"]), "support": v["support"]} for g, v in grade_perf.items()},
@@ -415,7 +399,7 @@ def cerberus_sentinel_eval_and_gate(
     })
 
     # The evaluator is itself a deterministic-factory contributor (role: evaluator).
-    # _current_git_commit now lives in the paths leaf (Phase N), imported at module level.
+
     evaluator_provenance = {
         "schema_version": CREATOR_PROVENANCE_SCHEMA,
         "creator_type": "deterministic_factory",
@@ -439,7 +423,7 @@ def cerberus_sentinel_eval_and_gate(
         decision = {
             "decision": "BASELINE_REQUIRED",
             "promoted": False,
-            "reasons": ["No registered baseline at baseline_eval/baseline_results.json -- run cerberus-sentinel-baseline-eval first."],
+            "reasons": ["No registered baseline at baseline_eval/baseline_results.json -- run claim_evidence-sentinel-baseline-eval first."],
         }
     else:
         reasons: list[str] = []
@@ -464,7 +448,7 @@ def cerberus_sentinel_eval_and_gate(
             "baseline": {k: baseline.get(k) for k in ("verdict_accuracy", "label_macro_f1", "false_safe_rate", "critical_label_recall")},
             "candidate": {k: metrics[k] for k in ("verdict_accuracy", "label_macro_f1", "false_safe_rate", "critical_label_recall", "strict_json_validity")},
         }
-    decision["schema_version"] = "sf.dojo_training_export.promotion_decision.v0.1"
+    decision["schema_version"] = "sf.dataset_training_export.promotion_decision.v0.1"
     decision["generated_at"] = now_utc()
     decision["strict_json_threshold"] = strict_json_threshold
     decision["training_loss_accepted_as_evidence"] = False
@@ -473,7 +457,7 @@ def cerberus_sentinel_eval_and_gate(
     write_json(out_dir / "promotion_decision.json", decision)
 
     write_json(out_dir / "eval_manifest.json", {
-        "schema_version": "sf.dojo_training_export.eval_manifest.v0.1",
+        "schema_version": "sf.dataset_training_export.eval_manifest.v0.1",
         "generated_at": now_utc(),
         "heldout_input": rel(root, export_dir / "heldout_eval.jsonl"),
         "predictions_input": str(predictions_path) if predictions_path else None,
@@ -481,7 +465,7 @@ def cerberus_sentinel_eval_and_gate(
         "baseline_input": rel(root, baseline_path) if baseline_path.exists() else None,
         "strict_json_threshold": strict_json_threshold,
         "creator_provenance": evaluator_provenance,
-        "outputs": ["eval_results.json", "promotion_decision.json", "confusion_matrix.json", "per_label_metrics.json", "logosone_metrics.json", "eval_manifest.json"],
+        "outputs": ["eval_results.json", "promotion_decision.json", "confusion_matrix.json", "per_label_metrics.json", "paired_curriculum_metrics.json", "eval_manifest.json"],
         "model_training_performed": False,
     })
 

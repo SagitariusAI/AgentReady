@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -70,12 +74,12 @@ def test_scan_processes_conversations_json_with_manifest_event_and_no_leak(tmp_p
     assert list(paths["processed"].glob("*conversations.json"))
     assert not list(paths["inbox"].glob("*"))
 
-    # manifest written, internal-only, not promoted
+    # manifest written, restricted-use, not promoted
     manifests = _manifests(store)
     assert len(manifests) == 1
     man = manifests[0]
     assert man["schema"] == "sf.chat_inbox_manifest.v0.1" and man["status"] == "processed"
-    assert man["internal_only"] is True and man["promoted_to_gold"] is False
+    assert man["restricted_use"] is True and man["promoted_to_gold"] is False
     assert man["import_exit_code"] == 0 and man["capture_event_id"]
 
     # a factory_capture command_run event for the importer was written

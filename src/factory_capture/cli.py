@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """factory-capture command-line interface.
 
 Subcommands: init, run, status, tail, hooks {install,uninstall,status}, note, summarize, hook.
@@ -123,7 +127,7 @@ def _cmd_hook(args) -> int:
         event["repo_root"] = str(repo_root)
         event["git_after"] = capture_git_state(repo_root)
         append_event(store, event)
-    except Exception:  # noqa: BLE001 - a hook must never break the founder's git operation
+    except Exception:  # noqa: BLE001 - a hook must never break the owner's git operation
         return 0
     return 0
 

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """osv-scanner invocation contract for the AgentReady security scan.
 
 The remote deps.dev transitive resolver can fail with internal errors after the

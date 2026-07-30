@@ -1,21 +1,8 @@
-"""Historical ChatGPT import / pilot sampler for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase E1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the internal-only historical chat import + pilot sampler subsystem moved verbatim out
-of agent_data_foundry.py with **no behavior change**. This is a near-leaf: it imports
-only the sibling library modules (io_jsonl for JSON/JSONL IO incl. the U+2028/U+2029
-escaping + readback, safety_scan for redaction/quarantine, rights for the internal-only
-default grade) and the stdlib — it never imports back from agent_data_foundry, so there
-is no import cycle.
-
-The lane is strictly internal: every record is graded A_INTERNAL_RESEARCH_ONLY
-(export/eval/training/sale all false), session/segment IDs are hashed, segment text is
-redacted in place and severe-secret segments have their text dropped + quarantined,
-nothing is promoted to training gold, and no derived observations / labels are
-fabricated. Primary source is the ChatGPT `conversations.json` only (no chat.html, no
-media/audio/user.json/message_feedback/shared_conversations). Keyword matching is
-word-boundary + case-insensitive so short terms never over-match substrings.
-"""
+"""Historical ChatGPT import / pilot sampler for the Agent Data Foundry."""
 from __future__ import annotations
 
 import hashlib
@@ -57,14 +44,14 @@ def _historical_internal_rights() -> dict[str, Any]:
         external_training_allowed=False,
         commercial_sale_allowed=False,
         requires_legal_review=True,
-        requires_founder_release=True,
+        requires_owner_release=True,
         reason="Historical chat: internal research only -- fossilized project cognition, never external.",
     )
 
 
 def _historical_internal_need() -> dict[str, Any]:
     return default_data_need(
-        primary_need="FACTORY_DOJO_INTERNAL",
+        primary_need="FACTORY_DATASET_INTERNAL",
         technical_value="MEDIUM",
         value_reason="Historical chat imported for internal long-horizon learning.",
     )
@@ -114,9 +101,9 @@ def _chatgpt_conversation_messages(conversation: dict[str, Any]) -> list[dict[st
 
 
 def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str | Path | None = None) -> dict[str, Any]:
-    """Tiny ChatGPT export parser for the internal-only historical chat lane.
+    """Tiny ChatGPT export parser for the restricted-use historical chat lane.
     Parses conversations.json, normalizes, hashes IDs, grades every record
-    internal-only, redacts/quarantines segment text (severe secret -> the segment
+    restricted-use, redacts/quarantines segment text (severe secret -> the segment
     text is dropped), and emits the internal output files. No summarizer, no
     semantic segmentation -- segment_kind stays `unknown`, derived observations
     stay empty (never fabricated). Never writes raw frontier transcripts outside
@@ -130,7 +117,7 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
 
     sessions: list[dict[str, Any]] = []
     segments: list[dict[str, Any]] = []
-    dojo_records: list[dict[str, Any]] = []
+    dataset_records: list[dict[str, Any]] = []
     quarantined_segments = 0
     redacted_segments = 0
     grade_counts: dict[str, int] = {}
@@ -192,8 +179,8 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
             "data_need": need,
             "data_rights": rights,
         })
-        dojo_records.append({
-            "schema_version": "sf.historical_chat_dojo_record.v0.1",
+        dataset_records.append({
+            "schema_version": "sf.historical_chat_dataset_record.v0.1",
             "session_id": session_id,
             "source_type": "chatgpt_export",
             "message_count": len(messages),
@@ -208,7 +195,7 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
     segments_path = out_root / "historical_chat_segments.jsonl"
     append_jsonl(out_root / "historical_chat_sessions.jsonl", sessions)
     append_jsonl(segments_path, segments)
-    append_jsonl(out_root / "historical_chat_dojo_records.jsonl", dojo_records)
+    append_jsonl(out_root / "historical_chat_dataset_records.jsonl", dataset_records)
 
     # Self-check: every emitted segment row must read back (no silent loss from a
     # Unicode line separator). A mismatch is a hard signal, not a rounding error.
@@ -219,14 +206,14 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
     manifest = {
         "schema_version": "sf.historical_chat_manifest.v0.1",
         "dataset_id": "historical-chats-internal",
-        "status": "INHOUSE_READY",
+        "status": "CURATED_READY",
         "generated_at": now_utc(),
         "source_path": str(source_path) if source_path else None,
         "session_count": len(sessions),
         "segment_count": len(segments),
         "segment_readback_count": segment_readback_count,
         "segment_readback_matches": segment_readback_count == len(segments),
-        "dojo_record_count": len(dojo_records),
+        "dataset_record_count": len(dataset_records),
         "quarantined_segments": quarantined_segments,
         "redacted_segments": redacted_segments,
         "external_release_allowed": False,
@@ -241,7 +228,7 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
         "data_rights_grade_counts": grade_counts,
         "export_allowed_rows": export_rows,
         "commercial_sale_rows": sale_rows,
-        "all_internal_only": export_rows == 0 and sale_rows == 0,
+        "all_restricted_use": export_rows == 0 and sale_rows == 0,
     }
     write_json(out_root / "historical_chat_rights_report.json", rights_report)
 
@@ -258,7 +245,7 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
     write_json(out_root / "historical_chat_signal_coverage_report.json", coverage_report)
 
     return {
-        "status": "INHOUSE_READY",
+        "status": "CURATED_READY",
         "session_count": len(sessions),
         "segment_count": len(segments),
         "segment_readback_count": segment_readback_count,
@@ -267,7 +254,7 @@ def import_historical_chats(root: Path | str = AGENTREADY_HOME, source_path: str
         "redacted_segments": redacted_segments,
         "external_release_allowed": False,
         "commercial_sale_allowed": False,
-        "all_internal_only": rights_report["all_internal_only"],
+        "all_restricted_use": rights_report["all_restricted_use"],
         "output_root": rel(root, out_root),
     }
 

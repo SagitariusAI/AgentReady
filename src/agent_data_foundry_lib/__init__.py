@@ -1,11 +1,8 @@
-"""Agent Data Foundry internal library.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase A of the module split: pure IO/JSONL/report helpers live in `io_jsonl`. The
-top-level `agent_data_foundry` module re-exports these names, so existing imports and
-CLI behavior are unchanged. Further responsibilities (schemas, provenance, exporter,
-eval gate, product-state, code-fitness, …) move here in later phases per
-docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md.
-"""
+"""Agent Data Foundry internal library."""
 from __future__ import annotations
 
 from agent_data_foundry_lib.adjudication import (
@@ -19,17 +16,17 @@ from agent_data_foundry_lib.adjudication import (
     task_source_id,
 )
 from agent_data_foundry_lib.capture_events import harvest_capture_events
-from agent_data_foundry_lib.cerberus_eval import (
-    CERBERUS_EVAL_SPLIT_SEED,
+from agent_data_foundry_lib.claim_evidence_eval import (
+    CLAIM_EVIDENCE_EVAL_SPLIT_SEED,
     baseline_predict,
-    build_cerberus_eval_split,
-    cerberus_baseline_eval,
-    cerberus_baseline_eval_gate,
-    cerberus_eval_split_gate,
+    build_claim_evidence_eval_split,
+    claim_evidence_baseline_eval,
+    claim_evidence_baseline_eval_gate,
+    claim_evidence_eval_split_gate,
 )
-from agent_data_foundry_lib.cerberus_release import (
-    build_cerberus_release_gate,
-    emit_cerberus_checksums,
+from agent_data_foundry_lib.claim_evidence_release import (
+    build_claim_evidence_release_gate,
+    emit_claim_evidence_checksums,
 )
 from agent_data_foundry_lib.code_fitness import code_fitness_scan
 from agent_data_foundry_lib.controlled_cases import (
@@ -58,33 +55,33 @@ from agent_data_foundry_lib.controlled_cases import (
     validate_controlled_cases,
     vault_code_confusion_controlled_row,
 )
+from agent_data_foundry_lib.curated_dataset import curated_dataset_root
+from agent_data_foundry_lib.curated_dataset_build import (
+    build_curated_dataset,
+    signal_coverage_report,
+    source_signal_safety_report,
+)
 from agent_data_foundry_lib.data_rights import DATASET_INTENDED_USES, data_rights_gate
 from agent_data_foundry_lib.dataset_card import (
-    CERBERUS_LABEL_TAXONOMY,
+    CLAIM_EVIDENCE_LABEL_TAXONOMY,
     corpus_provenance_breakdown,
     dataset_card_gate,
     emit_dataset_card,
     emit_label_taxonomy,
     label_taxonomy_gate,
 )
-from agent_data_foundry_lib.dojo import inhouse_dojo_root
-from agent_data_foundry_lib.dojo_build import (
-    build_inhouse_dojo,
-    signal_coverage_report,
-    source_signal_safety_report,
-)
 from agent_data_foundry_lib.eval_gate import (
     baseline_sentinel_predict,
-    cerberus_sentinel_baseline_eval,
-    cerberus_sentinel_eval_and_gate,
-    cerberus_sentinel_export_root,
+    claim_evidence_sentinel_baseline_eval,
+    claim_evidence_sentinel_eval_and_gate,
+    claim_evidence_sentinel_export_root,
 )
 from agent_data_foundry_lib.gold_corpus import (
-    cerberus_case_schema,
+    claim_evidence_case_schema,
     existing_gold_fingerprints,
     gold_jsonl_path,
-    validate_cerberus_case,
-    write_cerberus_schema,
+    validate_claim_evidence_case,
+    write_claim_evidence_schema,
 )
 from agent_data_foundry_lib.harvest import build_data_foundry, harvest_coordination_records
 from agent_data_foundry_lib.historical_chat import (
@@ -104,7 +101,6 @@ from agent_data_foundry_lib.io_jsonl import (
     sha256_file,
     write_json,
 )
-from agent_data_foundry_lib.logosone import build_logosone_block
 from agent_data_foundry_lib.mining import (
     append_mined_gold_rows,
     mine_misdirected_verification,
@@ -112,11 +108,12 @@ from agent_data_foundry_lib.mining import (
     mine_unsupported_promotions,
     mine_unsupported_promotions_v2,
     mine_vault_code_confusion,
-    upgrade_cerberus_gold_schema,
+    upgrade_claim_evidence_gold_schema,
 )
+from agent_data_foundry_lib.paired_curriculum import build_paired_curriculum_block
 from agent_data_foundry_lib.paths import (
     AGENTREADY_HOME,
-    cerberus_release_root,
+    claim_evidence_release_root,
     default_release_id,
     report_data_foundry_path,
     run_id_utc,
@@ -143,9 +140,9 @@ from agent_data_foundry_lib.rights import (
 )
 from agent_data_foundry_lib.safety_scan import scan_source_signals
 from agent_data_foundry_lib.schemas import (
-    CERBERUS_PRODUCT_ID,
-    CERBERUS_REQUIRED_LABELS,
-    CERBERUS_SCHEMA_VERSION,
+    CLAIM_EVIDENCE_PRODUCT_ID,
+    CLAIM_EVIDENCE_REQUIRED_LABELS,
+    CLAIM_EVIDENCE_SCHEMA_VERSION,
 )
 from agent_data_foundry_lib.source_signals import (
     build_diff_test_integrity,
@@ -159,28 +156,28 @@ from agent_data_foundry_lib.source_signals import (
     normalize_git_file_status,
     strip_diff_text_from_row,
 )
-from agent_data_foundry_lib.training_export import export_cerberus_sentinel_training
+from agent_data_foundry_lib.training_export import export_claim_evidence_sentinel_training
 
 __all__ = [
     "AGENTREADY_HOME",
-    "CERBERUS_EVAL_SPLIT_SEED",
-    "CERBERUS_LABEL_TAXONOMY",
-    "CERBERUS_PRODUCT_ID",
+    "CLAIM_EVIDENCE_EVAL_SPLIT_SEED",
+    "CLAIM_EVIDENCE_LABEL_TAXONOMY",
+    "CLAIM_EVIDENCE_PRODUCT_ID",
     "baseline_predict",
-    "build_cerberus_eval_split",
-    "build_cerberus_release_gate",
+    "build_claim_evidence_eval_split",
+    "build_claim_evidence_release_gate",
     "build_data_foundry",
-    "build_inhouse_dojo",
+    "build_curated_dataset",
     "harvest_coordination_records",
     "harvest_capture_events",
     "signal_coverage_report",
     "source_signal_safety_report",
-    "emit_cerberus_checksums",
-    "cerberus_baseline_eval",
-    "cerberus_baseline_eval_gate",
-    "cerberus_eval_split_gate",
-    "CERBERUS_REQUIRED_LABELS",
-    "CERBERUS_SCHEMA_VERSION",
+    "emit_claim_evidence_checksums",
+    "claim_evidence_baseline_eval",
+    "claim_evidence_baseline_eval_gate",
+    "claim_evidence_eval_split_gate",
+    "CLAIM_EVIDENCE_REQUIRED_LABELS",
+    "CLAIM_EVIDENCE_SCHEMA_VERSION",
     "DATASET_INTENDED_USES",
     "PROMOTABLE_POLICIES",
     "data_rights_gate",
@@ -196,8 +193,8 @@ __all__ = [
     "mine_unsupported_promotions",
     "mine_unsupported_promotions_v2",
     "mine_vault_code_confusion",
-    "upgrade_cerberus_gold_schema",
-    "cerberus_release_root",
+    "upgrade_claim_evidence_gold_schema",
+    "claim_evidence_release_root",
     "default_release_id",
     "report_data_foundry_path",
     "run_id_utc",
@@ -237,18 +234,18 @@ __all__ = [
     "task_fingerprint",
     "task_source_id",
     "build_creator_provenance_envelope",
-    "cerberus_case_schema",
+    "claim_evidence_case_schema",
     "existing_gold_fingerprints",
     "gold_jsonl_path",
-    "validate_cerberus_case",
-    "write_cerberus_schema",
+    "validate_claim_evidence_case",
+    "write_claim_evidence_schema",
     "build_diff_test_integrity",
     "build_file_op_types",
-    "build_logosone_block",
+    "build_paired_curriculum_block",
     "build_tool_call_trajectory",
-    "cerberus_sentinel_baseline_eval",
-    "cerberus_sentinel_eval_and_gate",
-    "cerberus_sentinel_export_root",
+    "claim_evidence_sentinel_baseline_eval",
+    "claim_evidence_sentinel_eval_and_gate",
+    "claim_evidence_sentinel_export_root",
     "code_fitness_scan",
     "data_rights_gate_row",
     "default_data_need",
@@ -256,14 +253,14 @@ __all__ = [
     "derive_assertion_delta",
     "derive_file_op_types",
     "derive_mock_skip_signals",
-    "export_cerberus_sentinel_training",
+    "export_claim_evidence_sentinel_training",
     "extract_diff_text",
     "harvest_source_signals",
     "historical_chats_root",
     "import_historical_chats",
     "infer_data_need_from_incident",
     "infer_data_rights_from_record",
-    "inhouse_dojo_root",
+    "curated_dataset_root",
     "infer_model_origin_from_record",
     "jsonl_row_count",
     "normalize_git_file_status",

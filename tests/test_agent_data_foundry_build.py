@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -45,7 +49,7 @@ def test_build_promotes_allowed_receipts_and_rejects_training_blocked_records(tm
     assert "external_source_citation_only" in manifest["rejections"][0]["reasons"]
 
 
-def test_build_writes_bdxl_plan_with_payload_budget_and_checksums(tmp_path: Path) -> None:
+def test_build_writes_archive_plan_with_payload_budget_and_checksums(tmp_path: Path) -> None:
     write_receipt(
         tmp_path,
         "eval",
@@ -59,9 +63,9 @@ def test_build_writes_bdxl_plan_with_payload_budget_and_checksums(tmp_path: Path
 
     result = build_data_foundry(tmp_path, release_id="test-release")
 
-    plan_path = tmp_path / result["bdxl_plan_path"]
+    plan_path = tmp_path / result["archive_plan_path"]
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     assert plan["payload_budget_bytes"] == 95_000_000_000
-    assert plan["volumes"][0]["volume_id"] == "BDXL-test-release-001"
+    assert plan["volumes"][0]["volume_id"] == "ARCHIVE-test-release-001"
     assert plan["volumes"][0]["files"][0]["sha256"]
     assert plan["volumes"][0]["files"][0]["relative_path"].endswith("evaluation_jsonl.jsonl")

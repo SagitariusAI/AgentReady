@@ -1,5 +1,8 @@
-"""Append-only task event stream — port of `Add-AgentEvent` (`bin/agent-coordination-lib.ps1` L223).
-One JSONL line per event under `events/<task_id>.jsonl`, with the exact PowerShell record shape."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for events."""
 from __future__ import annotations
 
 from agent_coordination.common import append_jsonl, now_stamp

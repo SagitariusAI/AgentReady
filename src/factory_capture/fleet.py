@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Fleet deployment and health reporting for per-repository Factory Capture.
 
 The capture runtime is repo-scoped, but AgentReady owns the managed-project

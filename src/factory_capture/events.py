@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Capture-event schema + append/index/query. JSONL is the source of truth; SQLite mirrors the
 queryable columns. Append is the only write path (append-only receipts)."""
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -32,14 +36,14 @@ def _write_chatgpt_export(tmp_path: Path, conversations: list[dict]) -> Path:
     return src
 
 
-def test_import_historical_chats_internal_only(tmp_path: Path) -> None:
+def test_import_historical_chats_restricted_use(tmp_path: Path) -> None:
     export = [_chatgpt_conversation("conv-1", "Architecture chat",
               [("user", "How should we structure the harvest?", 1), ("assistant", "Use a layered envelope.", 2)])]
     src = _write_chatgpt_export(tmp_path, export)
     result = import_historical_chats(tmp_path, source_path=src)
-    assert result["status"] == "INHOUSE_READY"
+    assert result["status"] == "CURATED_READY"
     assert result["session_count"] == 1 and result["segment_count"] == 2
-    assert result["all_internal_only"] is True
+    assert result["all_restricted_use"] is True
 
     out = tmp_path / _HIST_DIR
     sessions = [json.loads(line) for line in (out / "historical_chat_sessions.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -55,12 +59,12 @@ def test_import_historical_chats_internal_only(tmp_path: Path) -> None:
     assert any("layered envelope" in (seg.get("text") or "") for seg in segs)
     assert all(seg["segment_kind"] == "unknown" for seg in segs)  # no semantic segmentation yet
 
-    recs = [json.loads(line) for line in (out / "historical_chat_dojo_records.jsonl").read_text(encoding="utf-8").splitlines()]
+    recs = [json.loads(line) for line in (out / "historical_chat_dataset_records.jsonl").read_text(encoding="utf-8").splitlines()]
     assert recs[0]["derived_observations"] == []  # never fabricated
     assert "text" not in recs[0]  # derived record carries no raw text
 
     rights = json.loads((out / "historical_chat_rights_report.json").read_text(encoding="utf-8"))
-    assert rights["all_internal_only"] is True
+    assert rights["all_restricted_use"] is True
     assert json.loads((out / "historical_chat_manifest.json").read_text(encoding="utf-8"))["commercial_sale_allowed"] is False
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
@@ -96,18 +100,18 @@ def test_import_historical_chats_redacts_email(tmp_path: Path) -> None:
 def test_import_historical_chats_empty_source(tmp_path: Path) -> None:
     result = import_historical_chats(tmp_path, source_path=None)
     assert result["session_count"] == 0 and result["segment_count"] == 0
-    assert result["all_internal_only"] is True  # nothing imported -> trivially internal-only
+    assert result["all_restricted_use"] is True  # nothing imported -> trivially restricted-use
 
 
 def test_sample_historical_chats_selects_by_keyword(tmp_path: Path) -> None:
     export = [
-        _chatgpt_conversation("c1", "AgentReady harvest design", [("user", "how does the Cerberus data foundry grade rights?", 1)]),
+        _chatgpt_conversation("c1", "AgentReady harvest design", [("user", "how does the ClaimEvidence data foundry grade rights?", 1)]),
         _chatgpt_conversation("c2", "Grocery list", [("user", "buy milk and eggs", 1)]),
         _chatgpt_conversation("c3", "DGX setup", [("user", "configure the local model on the DGX", 1)]),
     ]
     src = _write_chatgpt_export(tmp_path, export)
     out = tmp_path / "pilot"
-    result = sample_historical_chats(src, out, keywords="AgentReady,Cerberus,DGX,local model", limit=20)
+    result = sample_historical_chats(src, out, keywords="AgentReady,ClaimEvidence,DGX,local model", limit=20)
     assert result["selected_count"] == 2  # c1 and c3 match; grocery list does not
 
     pilot = json.loads((out / "pilot_conversations.json").read_text(encoding="utf-8"))
@@ -135,14 +139,14 @@ def test_sample_historical_chats_respects_limit(tmp_path: Path) -> None:
 
 
 def test_sample_pilot_is_importable(tmp_path: Path) -> None:
-    export = [_chatgpt_conversation("c1", "AgentReady", [("user", "Cerberus design", 1), ("assistant", "layered envelope", 2)])]
+    export = [_chatgpt_conversation("c1", "AgentReady", [("user", "ClaimEvidence design", 1), ("assistant", "layered envelope", 2)])]
     src = _write_chatgpt_export(tmp_path, export)
     out = tmp_path / "pilot"
     sample_historical_chats(src, out, keywords="AgentReady", limit=20)
     # The pilot output runs cleanly through the importer.
     result = import_historical_chats(tmp_path, source_path=out / "pilot_conversations.json")
     assert result["session_count"] == 1
-    assert result["all_internal_only"] is True
+    assert result["all_restricted_use"] is True
 
 
 def test_sample_keyword_word_boundary_no_substring_false_positive(tmp_path: Path) -> None:

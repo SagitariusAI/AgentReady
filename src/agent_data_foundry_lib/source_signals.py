@@ -1,21 +1,8 @@
-"""Source-signal / diff-test / tool-trajectory capture anatomy for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase D1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the pure source-signal capture / git-status / diff-test anatomy helpers moved verbatim
-out of agent_data_foundry.py with **no behavior change**. Pure leaf — depends only on
-the stdlib (`re`) and `typing`.
-
-These builders derive the honest "bones" of a receipt/task: which paths were touched,
-which were tests/protected, what git operations occurred, what the diff added/removed
-(assertion / mock / skip counts), and how work moved through tools. The cardinal rule
-is preserved exactly: derive only what the record actually carries, and emit
-empty/null rather than fabricate precision (path-only file ops stay `unknown`;
-assertion/mock deltas stay null when there is no diff text).
-
-The Dojo builder (`build_inhouse_dojo`), the training exporter, the historical-chat
-parser, and the safety scan all stay in agent_data_foundry.py / their own leaves and
-consume these helpers via the re-exported names.
-"""
+"""Source-signal / diff-test / tool-trajectory capture anatomy for the Agent Data Foundry."""
 from __future__ import annotations
 
 import re
@@ -117,7 +104,7 @@ def harvest_source_signals(record: dict[str, Any]) -> dict[str, Any]:
         for entry in normalize_git_file_status(file_status_raw)
     ]
     # Raw diff text, if the receipt carried any. Stored at the source/evidence
-    # layer; the redaction filter scans it and the Dojo keeps only derived counts
+    # layer; the redaction filter scans it and the Dataset keeps only derived counts
     # (never the raw patch). Null when absent -- the v0.3 parser then emits null.
     diff_patch = None
     for diff_key in DIFF_TEXT_FIELDS:
@@ -386,7 +373,7 @@ def derive_mock_skip_signals(diff_text: str | None) -> dict[str, int | None]:
 
 
 def strip_diff_text_from_row(row: dict[str, Any]) -> dict[str, Any]:
-    """Remove raw diff text from a Dojo training row. The diff is evidence at the
+    """Remove raw diff text from a Dataset training row. The diff is evidence at the
     source layer (source_signals) and feeds the parsers, but only the DERIVED
     counts (assertion_delta / mock_skip_signals) belong in the lean training row.
     Strips top-level diff fields and source_signals.diff_patch."""

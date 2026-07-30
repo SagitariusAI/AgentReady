@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -95,11 +99,11 @@ def test_receipt_gold_row_fields_and_schema():
 
 def test_gold_coordination_row_carries_human_correction():
     task = {"id": "t1", "status": "completed", "evidence": ["gate pass", "push"],
-            "founder_override_reason": "verified push receipt"}
+            "owner_override_reason": "verified push receipt"}
     row = gold_coordination_row("sid", "fp", task)
     assert row["schema_version"] == "sf.product_incident.v0.2"
-    assert row["founder_override_reason"] == "verified push receipt"  # carried verbatim
-    assert "founder_override_reason" in HUMAN_CORRECTION_CARRY_FIELDS
+    assert row["owner_override_reason"] == "verified push receipt"  # carried verbatim
+    assert "owner_override_reason" in HUMAN_CORRECTION_CARRY_FIELDS
 
 
 def test_silver_row_and_safe_segment():

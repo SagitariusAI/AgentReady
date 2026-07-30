@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic git-state capture via the `git` CLI (stdlib subprocess only).
 
 Captures repo root, branch, HEAD commit, dirty flag, and changed/staged/untracked files. The remote

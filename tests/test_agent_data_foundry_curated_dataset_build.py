@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import hashlib
@@ -5,16 +9,16 @@ import json
 from pathlib import Path
 
 from agent_data_foundry_test_helpers import (
-    _DOJO_DIR,
+    _DATASET_DIR,
     _REALISH_GH_TOKEN,
     _SAMPLE_DIFF,
     _signals,
-    _write_dojo_gold,
+    _write_dataset_gold,
 )
 
 from agent_data_foundry import (
     SIGNAL_COVERAGE_FAMILIES,
-    build_inhouse_dojo,
+    build_curated_dataset,
     main,
     source_signal_safety_report,
     validate_data_need,
@@ -22,20 +26,20 @@ from agent_data_foundry import (
 )
 
 
-def test_build_inhouse_dojo_emits_internal_only_graded_dataset(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
+def test_build_curated_dataset_emits_restricted_use_graded_dataset(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
 
-    result = build_inhouse_dojo(tmp_path)
+    result = build_curated_dataset(tmp_path)
 
-    assert result["status"] == "INHOUSE_READY"
+    assert result["status"] == "CURATED_READY"
     assert result["rows_seen"] == 3
     assert result["rows_emitted"] == 2  # quarantine excluded
     assert result["rows_rejected"] == 1
     assert result["external_release_allowed"] is False
     assert result["commercial_sale_allowed"] is False
 
-    dojo = tmp_path / _DOJO_DIR
-    rows = [json.loads(line) for line in (dojo / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    dataset = tmp_path / _DATASET_DIR
+    rows = [json.loads(line) for line in (dataset / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 2
     ids = {r["fingerprint"] for r in rows}
     assert ids == {"fp-internal", "fp-critical"}
@@ -51,46 +55,46 @@ def test_build_inhouse_dojo_emits_internal_only_graded_dataset(tmp_path: Path) -
         assert row["data_rights"]["commercial_sale_allowed"] is False
         assert row["data_rights"]["grade"] != "F_QUARANTINE"
 
-    # The CRITICAL-value row is retained, internal-only.
+    # The CRITICAL-value row is retained, restricted-use.
     critical = next(r for r in rows if r["fingerprint"] == "fp-critical")
     assert critical["data_need"]["technical_value"] == "CRITICAL"
     assert critical["data_rights"]["export_allowed"] is False
 
 
-def test_build_inhouse_dojo_never_writes_release_ready(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
-    # The internal Dojo lane must not create or touch the external release tree.
+def test_build_curated_dataset_never_writes_release_ready(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
+    # The internal Dataset lane must not create or touch the external release tree.
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
-    assert (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").exists()
+    assert (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").exists()
 
 
-def test_build_inhouse_dojo_manifest_and_reports(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
-    dojo = tmp_path / _DOJO_DIR
+def test_build_curated_dataset_manifest_and_reports(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
+    dataset = tmp_path / _DATASET_DIR
 
-    manifest = json.loads((dojo / "factory_dojo_manifest.json").read_text(encoding="utf-8"))
-    assert manifest["dataset_id"] == "factory-dojo-internal"
-    assert manifest["status"] == "INHOUSE_READY"
+    manifest = json.loads((dataset / "curated_dataset_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["dataset_id"] == "factory-dataset-internal"
+    assert manifest["status"] == "CURATED_READY"
     assert manifest["record_count"] == 2
     assert manifest["external_release_allowed"] is False
     assert manifest["commercial_sale_allowed"] is False
     assert manifest["technical_value_counts"].get("CRITICAL") == 1
 
-    rights = json.loads((dojo / "factory_dojo_rights_report.json").read_text(encoding="utf-8"))
+    rights = json.loads((dataset / "curated_dataset_rights_report.json").read_text(encoding="utf-8"))
     assert rights["export_allowed_rows"] == 0
     assert rights["commercial_sale_rows"] == 0
     assert rights["quarantine_rows"] == 0
-    assert rights["all_internal_only"] is True
+    assert rights["all_restricted_use"] is True
 
-    quality = json.loads((dojo / "factory_dojo_quality_report.json").read_text(encoding="utf-8"))
+    quality = json.loads((dataset / "curated_dataset_quality_report.json").read_text(encoding="utf-8"))
     assert quality["rows_seen"] == 3
     assert quality["rows_emitted"] == 2
     assert quality["rows_rejected"] == 1
 
 
-def test_dojo_rejection_detail_is_complete_and_hashed(tmp_path: Path) -> None:
+def test_dataset_rejection_detail_is_complete_and_hashed(tmp_path: Path) -> None:
     gold = (
         tmp_path
         / "data"
@@ -110,9 +114,9 @@ def test_dojo_rejection_detail_is_complete_and_hashed(tmp_path: Path) -> None:
         for index in range(60)
     ]
     gold.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-    build_inhouse_dojo(tmp_path)
-    dojo = tmp_path / _DOJO_DIR
-    report = json.loads((dojo / "factory_dojo_quality_report.json").read_text(encoding="utf-8"))
+    build_curated_dataset(tmp_path)
+    dataset = tmp_path / _DATASET_DIR
+    report = json.loads((dataset / "curated_dataset_quality_report.json").read_text(encoding="utf-8"))
     rejection_path = tmp_path / report["rejections_path"]
     assert report["rows_rejected"] == 60
     assert len(report["rejections"]) == 50
@@ -121,34 +125,34 @@ def test_dojo_rejection_detail_is_complete_and_hashed(tmp_path: Path) -> None:
     assert report["rejections_sha256"] == hashlib.sha256(rejection_path.read_bytes()).hexdigest()
 
 
-def test_cli_build_inhouse_dojo_action(tmp_path: Path, capsys) -> None:
-    _write_dojo_gold(tmp_path)
-    exit_code = main(["--action", "build-inhouse-dojo", "--root", str(tmp_path)])
+def test_cli_build_curated_dataset_action(tmp_path: Path, capsys) -> None:
+    _write_dataset_gold(tmp_path)
+    exit_code = main(["--action", "build-curated-dataset", "--root", str(tmp_path)])
 
     assert exit_code == 0
-    assert "Factory Dojo internal export" in capsys.readouterr().out
-    assert (tmp_path / _DOJO_DIR / "factory_dojo_manifest.json").exists()
+    assert "Curated Dataset internal export" in capsys.readouterr().out
+    assert (tmp_path / _DATASET_DIR / "curated_dataset_manifest.json").exists()
 
 
-def test_build_inhouse_dojo_action_registered_in_public_cli(tmp_path: Path, capsys) -> None:
-    _write_dojo_gold(tmp_path)
-    assert main(["--action", "build-inhouse-dojo", "--root", str(tmp_path)]) == 0
-    assert "Factory Dojo internal export" in capsys.readouterr().out
+def test_build_curated_dataset_action_registered_in_public_cli(tmp_path: Path, capsys) -> None:
+    _write_dataset_gold(tmp_path)
+    assert main(["--action", "build-curated-dataset", "--root", str(tmp_path)]) == 0
+    assert "Curated Dataset internal export" in capsys.readouterr().out
 
 
-def test_build_inhouse_dojo_adds_signal_coverage_and_report(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
-    dojo = tmp_path / _DOJO_DIR
+def test_build_curated_dataset_adds_signal_coverage_and_report(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
+    dataset = tmp_path / _DATASET_DIR
 
-    rows = [json.loads(line) for line in (dojo / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    rows = [json.loads(line) for line in (dataset / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     for row in rows:
         assert row.get("signal_coverage")
         assert set(row["signal_coverage"]["families"]) == set(SIGNAL_COVERAGE_FAMILIES)
 
-    report = json.loads((dojo / "factory_dojo_signal_coverage_report.json").read_text(encoding="utf-8"))
-    assert report["schema_version"] == "sf.factory_dojo.signal_coverage_report.v0.1"
+    report = json.loads((dataset / "curated_dataset_signal_coverage_report.json").read_text(encoding="utf-8"))
+    assert report["schema_version"] == "sf.curated_dataset.signal_coverage_report.v0.1"
     assert report["records_with_signal_coverage"] == len(rows)
     assert "claim_target_alignment" in report["family_status_counts"]
     assert report["overall_signal_value_counts"]["CRITICAL"] >= 1  # MISDIRECTED_VERIFICATION row
@@ -158,10 +162,10 @@ def test_build_inhouse_dojo_adds_signal_coverage_and_report(tmp_path: Path) -> N
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_build_inhouse_dojo_attaches_diff_test_integrity(tmp_path: Path) -> None:
-    _write_dojo_gold(tmp_path)
-    build_inhouse_dojo(tmp_path)
-    rows = [json.loads(line) for line in (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+def test_build_curated_dataset_attaches_diff_test_integrity(tmp_path: Path) -> None:
+    _write_dataset_gold(tmp_path)
+    build_curated_dataset(tmp_path)
+    rows = [json.loads(line) for line in (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     for row in rows:
         block = row.get("diff_test_integrity")
@@ -171,7 +175,7 @@ def test_build_inhouse_dojo_attaches_diff_test_integrity(tmp_path: Path) -> None
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_build_inhouse_dojo_quarantines_and_redacts(tmp_path: Path) -> None:
+def test_build_curated_dataset_quarantines_and_redacts(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     rows = [
@@ -184,9 +188,9 @@ def test_build_inhouse_dojo_quarantines_and_redacts(tmp_path: Path) -> None:
     ]
     gold.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
-    build_inhouse_dojo(tmp_path)
-    dojo = tmp_path / _DOJO_DIR
-    emitted = [json.loads(line) for line in (dojo / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    dataset = tmp_path / _DATASET_DIR
+    emitted = [json.loads(line) for line in (dataset / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     fingerprints = {r.get("fingerprint") for r in emitted}
     # The secret-bearing row is quarantined out; clean and redacted survive.
     assert "fp-secret" not in fingerprints
@@ -201,7 +205,7 @@ def test_build_inhouse_dojo_quarantines_and_redacts(tmp_path: Path) -> None:
     assert clean_row["source_signal_safety"]["scan_status"] == "PASS"
 
     # Build-time report sees the full scan including the quarantined row.
-    safety_report = json.loads((dojo / "factory_dojo_source_signal_safety_report.json").read_text(encoding="utf-8"))
+    safety_report = json.loads((dataset / "curated_dataset_source_signal_safety_report.json").read_text(encoding="utf-8"))
     assert safety_report["scope"] == "full_scan_including_quarantined"
     assert safety_report["status_counts"]["QUARANTINE"] == 1
     assert safety_report["quarantined_rows"] == 1
@@ -214,7 +218,7 @@ def test_build_inhouse_dojo_quarantines_and_redacts(tmp_path: Path) -> None:
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_source_signals_feed_diff_test_capture_in_dojo(tmp_path: Path) -> None:
+def test_source_signals_feed_diff_test_capture_in_dataset(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     row = {
@@ -231,8 +235,8 @@ def test_source_signals_feed_diff_test_capture_in_dojo(tmp_path: Path) -> None:
         },
     }
     gold.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    build_inhouse_dojo(tmp_path)
-    rows = [json.loads(line) for line in (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    rows = [json.loads(line) for line in (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     block = rows[0]["diff_test_integrity"]
     assert block["diff_stat"]["files_changed"] == 2  # sourced from source_signals, not top-level
@@ -244,7 +248,7 @@ def test_source_signals_feed_diff_test_capture_in_dojo(tmp_path: Path) -> None:
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_dojo_attaches_tool_call_trajectory(tmp_path: Path) -> None:
+def test_dataset_attaches_tool_call_trajectory(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     row = {
@@ -252,8 +256,8 @@ def test_dojo_attaches_tool_call_trajectory(tmp_path: Path) -> None:
         "source_signals": _signals(commands_run=["pytest -q", "git push"]),
     }
     gold.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    build_inhouse_dojo(tmp_path)
-    rows = [json.loads(line) for line in (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    rows = [json.loads(line) for line in (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     block = rows[0]["tool_call_trajectory"]
     assert block["schema_version"] == "sf.tool_call_trajectory.v0.1"
@@ -263,7 +267,7 @@ def test_dojo_attaches_tool_call_trajectory(tmp_path: Path) -> None:
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_dojo_attaches_human_correction_lineage(tmp_path: Path) -> None:
+def test_dataset_attaches_human_correction_lineage(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     row = {
@@ -273,8 +277,8 @@ def test_dojo_attaches_human_correction_lineage(tmp_path: Path) -> None:
         "state_transition": {"artifact_state_approved": "NEEDS_REVIEW", "promotion_allowed": False},
     }
     gold.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    build_inhouse_dojo(tmp_path)
-    rows = [json.loads(line) for line in (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    rows = [json.loads(line) for line in (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     block = rows[0]["human_correction_lineage"]
     assert block["schema_version"] == "sf.human_correction_lineage.v0.1"
@@ -283,13 +287,13 @@ def test_dojo_attaches_human_correction_lineage(tmp_path: Path) -> None:
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_dojo_attaches_model_route_cost(tmp_path: Path) -> None:
+def test_dataset_attaches_model_route_cost(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     row = {"incident_type": "CLAIM_WITHOUT_EVIDENCE", "fingerprint": "fp-mrc", "verdict": "BLOCK", "agent": "claude"}
     gold.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    build_inhouse_dojo(tmp_path)
-    rows = [json.loads(line) for line in (tmp_path / _DOJO_DIR / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    rows = [json.loads(line) for line in (tmp_path / _DATASET_DIR / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     block = rows[0]["model_route_cost"]
     assert block["schema_version"] == "sf.model_route_cost.v0.1"
@@ -300,7 +304,7 @@ def test_dojo_attaches_model_route_cost(tmp_path: Path) -> None:
     assert not (tmp_path / "data" / "training-library" / "40_release_ready").exists()
 
 
-def test_dojo_consumes_diff_then_strips_it(tmp_path: Path) -> None:
+def test_dataset_consumes_diff_then_strips_it(tmp_path: Path) -> None:
     gold = tmp_path / "data" / "training-library" / "10_working" / "coordination-harvest" / "20_gold" / "product_incidents.jsonl"
     gold.parent.mkdir(parents=True, exist_ok=True)
     rows = [
@@ -313,9 +317,9 @@ def test_dojo_consumes_diff_then_strips_it(tmp_path: Path) -> None:
     ]
     gold.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
-    build_inhouse_dojo(tmp_path)
-    dojo = tmp_path / _DOJO_DIR
-    emitted = [json.loads(line) for line in (dojo / "factory_dojo_internal.jsonl").read_text(encoding="utf-8").splitlines()]
+    build_curated_dataset(tmp_path)
+    dataset = tmp_path / _DATASET_DIR
+    emitted = [json.loads(line) for line in (dataset / "curated_dataset_internal.jsonl").read_text(encoding="utf-8").splitlines()]
     fps = {r["fingerprint"] for r in emitted}
     assert "fp-secret-diff" not in fps  # quarantined
     assert "fp-diff" in fps

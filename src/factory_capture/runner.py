@@ -1,6 +1,10 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Command execution with live tee + deterministic capture.
 
-run_command runs a wrapped command, streams stdout/stderr live to the terminal (raw — the founder's
+run_command runs a wrapped command, streams stdout/stderr live to the terminal (raw — the owner's
 own screen), and simultaneously buffers them. On completion it redacts the buffers, writes redacted
 log files, hashes the redacted content, captures git state before/after, writes one append-only
 ``command_run`` event, and returns the event. The wrapped command's exit code is preserved for the
@@ -36,7 +40,7 @@ def _exec_tee(
 ) -> tuple[list[str], list[str], int]:
     """Run command, tee both streams live to the terminal while buffering. Returns (out, err, rc)."""
     try:
-        proc = subprocess.Popen(  # noqa: S603 - command is the founder's explicit wrapped argv
+        proc = subprocess.Popen(  # noqa: S603 - command is the owner's explicit wrapped argv
             command, cwd=str(cwd), env=dict(env) if env is not None else None,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1,
         )

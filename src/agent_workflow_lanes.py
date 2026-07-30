@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Canonical personal/business/research workflow-lane classification.
 
 Code remains Factory machinery. The lane belongs to the work and its data.
@@ -13,7 +17,7 @@ WORKFLOW_LANES = ("personal", "business", "research")
 
 _RESEARCH = re.compile(
     r"\b(research|training|train|dataset|data[ -]?foundry|data[ -]?forge|"
-    r"fine[ -]?tun|evaluation|benchmark|model[ -]?card|curriculum|dojo)\b",
+    r"fine[ -]?tun|evaluation|benchmark|model[ -]?card|curriculum|dataset)\b",
     re.IGNORECASE,
 )
 _PERSONAL = re.compile(

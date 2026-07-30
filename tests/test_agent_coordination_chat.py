@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from typing import cast
@@ -13,7 +17,7 @@ def test_publish_chat_calls_transport_with_agent_and_text():
 
 def test_publish_chat_never_raises_on_transport_failure():
     def boom(agent, text):
-        raise RuntimeError("matrix down")
+        raise RuntimeError("transport down")
     # must not propagate -- coordination actions never break on a chat failure
     chat.publish_chat("claude", "x", transport=boom)  # no exception
 

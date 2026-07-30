@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -5,14 +9,14 @@ from pathlib import Path
 
 from agent_data_foundry_lib.controlled_cases import vault_code_confusion_controlled_row
 from agent_data_foundry_lib.gold_corpus import (
-    cerberus_case_schema,
+    claim_evidence_case_schema,
     existing_gold_fingerprints,
     gold_jsonl_path,
-    validate_cerberus_case,
-    write_cerberus_schema,
+    validate_claim_evidence_case,
+    write_claim_evidence_schema,
 )
 from agent_data_foundry_lib.io_jsonl import append_jsonl
-from agent_data_foundry_lib.schemas import CERBERUS_SCHEMA_VERSION
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_SCHEMA_VERSION
 
 
 def test_gold_jsonl_path_is_canonical():
@@ -28,9 +32,9 @@ def test_existing_gold_fingerprints_reads_dedup_set(tmp_path: Path):
     assert existing_gold_fingerprints(tmp_path) == {"a1", "b2"}
 
 
-def test_cerberus_case_schema_required_fields_stable():
-    schema = cerberus_case_schema()
-    assert schema["title"] == "Cerberus Claim-Evidence Case"
+def test_claim_evidence_case_schema_required_fields_stable():
+    schema = claim_evidence_case_schema()
+    assert schema["title"] == "ClaimEvidence Claim-Evidence Case"
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert len(schema["required"]) == 25
     for key in ("schema_version", "fingerprint", "incident_type", "verdict", "commercial_safety", "evidence_profile"):
@@ -39,17 +43,17 @@ def test_cerberus_case_schema_required_fields_stable():
     assert set(schema["properties"]) == set(schema["required"])
 
 
-def test_write_cerberus_schema_emits_canonical_path_and_content(tmp_path: Path):
-    out = write_cerberus_schema(tmp_path)
+def test_write_claim_evidence_schema_emits_canonical_path_and_content(tmp_path: Path):
+    out = write_claim_evidence_schema(tmp_path)
     assert out == tmp_path / "data" / "training-library" / "schemas" / "claim_evidence_case.schema.json"
-    assert json.loads(out.read_text(encoding="utf-8")) == cerberus_case_schema()
+    assert json.loads(out.read_text(encoding="utf-8")) == claim_evidence_case_schema()
 
 
 def test_validate_passes_complete_row_and_flags_missing():
     valid = vault_code_confusion_controlled_row("vcc-001", "vault_page_source_missing", "d", "source_file")
-    assert validate_cerberus_case(valid) == []  # complete, correct schema_version
+    assert validate_claim_evidence_case(valid) == []  # complete, correct schema_version
     # missing all fields
-    failures = validate_cerberus_case({})
+    failures = validate_claim_evidence_case({})
     assert "schema_version" in failures and "fingerprint" in failures
     assert "schema_version:v0.2_required" in failures  # version gate token
 
@@ -58,16 +62,16 @@ def test_validate_schema_version_gate_token():
     valid = vault_code_confusion_controlled_row("vcc-002", "vault_page_source_missing", "d", "source_file")
     bumped = dict(valid)
     bumped["schema_version"] = "wrong.version"
-    failures = validate_cerberus_case(bumped)
+    failures = validate_claim_evidence_case(bumped)
     assert failures == ["schema_version:v0.2_required"]  # only the version token, all fields present
-    assert valid["schema_version"] == CERBERUS_SCHEMA_VERSION
+    assert valid["schema_version"] == CLAIM_EVIDENCE_SCHEMA_VERSION
 
 
 def test_reexported_identity_from_agent_data_foundry():
     import agent_data_foundry as adf
 
-    assert adf.validate_cerberus_case is validate_cerberus_case
+    assert adf.validate_claim_evidence_case is validate_claim_evidence_case
     assert adf.gold_jsonl_path is gold_jsonl_path
     assert adf.existing_gold_fingerprints is existing_gold_fingerprints
-    assert adf.write_cerberus_schema is write_cerberus_schema
-    assert adf.cerberus_case_schema is cerberus_case_schema
+    assert adf.write_claim_evidence_schema is write_claim_evidence_schema
+    assert adf.claim_evidence_case_schema is claim_evidence_case_schema

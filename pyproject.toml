@@ -5,7 +5,7 @@ description = "Local-first software-factory governance, coordination, capture, q
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-authors = [{ name = "AgentReady contributors" }]
+authors = [{ name = "Sagittarius AI", email = "contact@example.invalid" }]
 keywords = ["software-factory", "agent-governance", "release-engineering"]
 classifiers = [
   "Development Status :: 4 - Beta",

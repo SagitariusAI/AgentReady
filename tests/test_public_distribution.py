@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -5,6 +9,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from pathlib import Path
 
 import agent_runtime_paths
@@ -60,7 +65,7 @@ def test_factory_capture_initializes_a_new_empty_database(tmp_path: Path):
     assert not list(store.logs_dir.iterdir())
     assert not list(store.artifacts_dir.iterdir())
     assert not list(store.sessions_dir.iterdir())
-    with sqlite3.connect(store.index_path) as connection:
+    with closing(sqlite3.connect(store.index_path)) as connection:
         assert connection.execute("select count(*) from events").fetchone()[0] == 0
     config = json.loads(store.config_path.read_text(encoding="utf-8"))
     assert config["repo_root"] == str(repo)

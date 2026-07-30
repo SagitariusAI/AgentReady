@@ -1,31 +1,9 @@
 #!/usr/bin/env python3
-"""Project-agnostic work-state gates — the mechanical half of the constitution.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-The constitution (AGENT_CONSTITUTION.md, Articles I & VI) says a *complete*
-handoff or a push may not happen over a **dirty** or **gate-red** tree, and that
-the handoff/push tool must *refuse* it — not merely record it. This module is
-that refusal, in Python (the PowerShell launchers are thin shims).
-
-Two facts decide a gate:
-
-  * **tree clean?** — universal, from ``git status --porcelain``.
-  * **gate green @ HEAD?** — read from the generic marker
-    ``<repo>/.agentready/gate_status.json`` that a project's gate writes on
-    pass/fail (``mark`` subcommand). "Green" requires ``status == pass`` AND the
-    marker's ``ref`` equals the current HEAD — a gate that ran against an older
-    commit is **stale**, not green. So committing more work after a green gate
-    re-arms the gate until you re-run it.
-
-Project-agnostic: the repo is always an input; the only project assumption is the
-``.agentready/gate_status.json`` contract, which any project's gate can write.
-Dirty-tree enforcement needs no contract at all.
-
-CLI:
-    agent_workstate.py tree        --repo R                  # tree state (task-start warning)
-    agent_workstate.py handoff-gate --repo R --status STATUS # exit 0 allow / 4 reject
-    agent_workstate.py push-gate   --repo R                  # exit 0 allow / 5 reject
-    agent_workstate.py mark        --repo R --status pass|fail --kind KIND  # a gate records its result
-"""
+"""Project-agnostic work-state gates — the mechanical half of the constitution."""
 from __future__ import annotations
 
 import argparse
@@ -183,7 +161,7 @@ def cmd_handoff_gate(a):
           "(constitution: DONE = gate-green + committed + pushed).")
     for r in v["reasons"]:
         print(f"   - {r}")
-    print("   Override (founder-authorized only): re-run with --force-dirty and a reason, "
+    print("   Override (owner-authorized only): re-run with --force-dirty and a reason, "
           "or hand off honestly as --status wip / --status blocked.")
     return 4
 

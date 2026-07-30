@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Path locks for concurrent-work claims — port of `Set-AgentLocks` (L360-378) and `Remove-AgentLocks`
 (L380-390). One lock file per claimed path under `locks/<sha256(path)[:16]>.json`."""
 from __future__ import annotations

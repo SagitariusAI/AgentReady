@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """The local capture store: data-root resolution + on-disk layout + SQLite index init.
 
 Default data root is repo-local — ``<repo_root>/.factory_capture`` — because capture and git hooks

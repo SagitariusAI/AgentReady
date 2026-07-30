@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import re
@@ -6,19 +10,19 @@ from pathlib import Path
 from agent_data_foundry_lib.paths import (
     AGENTREADY_HOME,
     _current_git_commit,
-    cerberus_release_root,
+    claim_evidence_release_root,
     default_release_id,
     report_data_foundry_path,
     run_id_utc,
 )
-from agent_data_foundry_lib.schemas import CERBERUS_PRODUCT_ID
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_PRODUCT_ID
 
 
 def test_path_roots_are_canonical():
     root = Path("R")
     assert report_data_foundry_path(root, "x.json") == root / "reports" / "data-foundry" / "x.json"
-    assert cerberus_release_root(root) == root / "data" / "training-library" / "40_release_ready" / CERBERUS_PRODUCT_ID
-    assert cerberus_release_root(root, "custom-id").name == "custom-id"
+    assert claim_evidence_release_root(root) == root / "data" / "training-library" / "40_release_ready" / CLAIM_EVIDENCE_PRODUCT_ID
+    assert claim_evidence_release_root(root, "custom-id").name == "custom-id"
 
 
 def test_agentready_home_is_a_path():
@@ -43,6 +47,6 @@ def test_reexported_identity_from_central_and_package():
     assert adf.report_data_foundry_path is report_data_foundry_path
     assert adf.AGENTREADY_HOME is AGENTREADY_HOME
     assert adf._current_git_commit is _current_git_commit
-    assert adf.cerberus_release_root is cerberus_release_root
+    assert adf.claim_evidence_release_root is claim_evidence_release_root
     assert adfl.report_data_foundry_path is report_data_foundry_path
     assert adfl.run_id_utc is run_id_utc

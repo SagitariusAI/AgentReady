@@ -1,10 +1,14 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from agent_data_foundry import (
-    build_cerberus_release_gate,
+    build_claim_evidence_release_gate,
     generate_completion_by_deferral_controlled_cases,
     generate_misdirected_verification_controlled_cases,
     generate_supported_claim_controlled_cases,
@@ -41,7 +45,7 @@ def test_generate_vault_code_confusion_controlled_cases_stages_with_provenance_w
     assert all(row["source_model_output_used"] is False for row in rows)
     assert not gold_path.exists()
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["summary"]["total_records"] == 0
     assert gate["summary"]["controlled_records"] == 0
     assert gate["summary"]["staged_controlled_records"] == 50
@@ -87,7 +91,7 @@ def test_promote_controlled_cases_requires_adjudication_and_keeps_controlled_pro
 
     assert duplicate_result["promoted"] == 0
     assert duplicate_result["skipped_duplicates"] == 50
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["summary"]["total_records"] == 50
     assert gate["summary"]["controlled_records"] == 50
     assert gate["summary"]["natural_records"] == 0
@@ -136,7 +140,7 @@ def test_generate_unsupported_promotion_controlled_cases_stages_with_provenance_
     assert all(row["state_transition"]["promotion_allowed"] is False for row in rows)
     assert not gold_path.exists()
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["summary"]["total_records"] == 0
     assert gate["summary"]["controlled_records"] == 0
     assert gate["summary"]["staged_controlled_records"] == 50
@@ -162,7 +166,7 @@ def test_promote_controlled_cases_promotes_multiple_families_into_gold(tmp_path:
     assert all(row["provenance_type"] == "CONTROLLED_CASE" for row in rows)
     assert all(row["controlled_case_family"] == row["incident_type"] for row in rows)
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["label_distribution"]["UNSUPPORTED_PROMOTION"] == 50
     assert gate["label_distribution"]["VAULT_CODE_CONFUSION"] == 50
     assert gate["summary"]["controlled_records"] == 100
@@ -211,7 +215,7 @@ def test_generate_misdirected_verification_controlled_cases_stages_with_provenan
     assert all(row["state_transition"]["promotion_allowed"] is False for row in rows)
     assert not gold_path.exists()
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["summary"]["staged_controlled_records"] == 50
 
 
@@ -234,7 +238,7 @@ def test_promote_controlled_cases_promotes_all_three_families_into_gold(tmp_path
     assert result["promoted"] == 150
     assert result["skipped_duplicates"] == 0
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["label_distribution"]["MISDIRECTED_VERIFICATION"] == 50
     assert gate["label_distribution"]["UNSUPPORTED_PROMOTION"] == 50
     assert gate["label_distribution"]["VAULT_CODE_CONFUSION"] == 50
@@ -316,7 +320,7 @@ def test_promote_controlled_cases_closes_label_gates_across_five_families(tmp_pa
     assert result["promoted"] == 220
     assert result["skipped_duplicates"] == 0
 
-    gate = build_cerberus_release_gate(tmp_path)
+    gate = build_claim_evidence_release_gate(tmp_path)
     assert gate["label_distribution"]["COMPLETION_BY_DEFERRAL"] == 50
     assert gate["label_distribution"]["SUPPORTED_CLAIM"] == 20
     assert gate["summary"]["controlled_records"] == 220

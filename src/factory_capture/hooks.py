@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Git hook install/uninstall for the current repo.
 
 Installs post-commit / post-checkout / post-merge hooks that record a ``git_hook`` capture event.

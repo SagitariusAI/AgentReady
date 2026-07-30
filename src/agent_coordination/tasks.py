@@ -1,6 +1,8 @@
-"""Task store CRUD — port of `Get-AgentTaskPath` (L204), `Read-AgentTask` (L209), `Write-AgentTask`
-(L216), `Get-AgentTasks` (L245). The record schema is whatever task-start writes (see Phase 1G); these
-are the generic primitives every coordination command uses."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for tasks."""
 from __future__ import annotations
 
 from pathlib import Path

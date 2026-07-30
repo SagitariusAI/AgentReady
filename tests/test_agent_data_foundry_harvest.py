@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -50,7 +54,7 @@ def test_harvest_coordination_records_backfills_multiple_roots_without_collision
     assert all("abstracted_agent_claim" in row for row in gold_rows)
     assert all("Raw agent summary" not in json.dumps(row) for row in gold_rows)
     assert all(row["schema_version"] == "sf.product_incident.v0.2" for row in gold_rows)
-    assert all(row["dataset_family"] == "cerberus_sentinel" for row in gold_rows)
+    assert all(row["dataset_family"] == "claim_evidence_sentinel" for row in gold_rows)
     assert all(row["training_target"] == "claim_evidence_alignment" for row in gold_rows)
     assert all(row["workflow_lane"] == "research" for row in gold_rows)
     assert all(row["data_lane"] == "research" for row in gold_rows)

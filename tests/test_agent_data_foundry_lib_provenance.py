@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from agent_data_foundry_lib.provenance import (
@@ -33,19 +37,19 @@ def test_deterministic_execution_mode_is_factory_not_model() -> None:
     assert _model_signal(row)["creator_type"] == "deterministic_factory"
 
 
-def test_founder_correction_review_and_no_fabricated_approval() -> None:
-    row = {"founder_override_reason": "verified push receipt"}
+def test_owner_correction_review_and_no_fabricated_approval() -> None:
+    row = {"owner_override_reason": "verified push receipt"}
     env = build_creator_provenance_envelope(row, "c")
-    assert env["review_provenance"]["review_status"] == "founder_approved"
-    assert any(s["stage"] == "corrected" and s["authority_level"] == "founder" for s in env["provenance_chain"])
-    # a row with no human signal must never fabricate founder approval
+    assert env["review_provenance"]["review_status"] == "owner_approved"
+    assert any(s["stage"] == "corrected" and s["authority_level"] == "owner" for s in env["provenance_chain"])
+    # a row with no human signal must never fabricate owner approval
     plain = build_creator_provenance_envelope({}, "c")
-    assert plain["review_provenance"]["review_status"] != "founder_approved"
-    assert all(r["reviewer_display"] != "Founder" for r in plain["review_provenance"]["reviewers"])
+    assert plain["review_provenance"]["review_status"] != "owner_approved"
+    assert all(r["reviewer_display"] != "Owner" for r in plain["review_provenance"]["reviewers"])
 
 
 def test_human_correction_signal_kinds() -> None:
-    assert _human_correction_signal({"founder_override_reason": "x"})["kind"] == "founder"
+    assert _human_correction_signal({"owner_override_reason": "x"})["kind"] == "owner"
     assert _human_correction_signal({"human_correction": "x"})["kind"] == "human"
     assert _human_correction_signal({})["kind"] == "none"
 
@@ -55,7 +59,7 @@ def test_summarize_provenance_counts() -> None:
     envs += [build_creator_provenance_envelope({}, "c") for _ in range(2)]
     s = summarize_provenance(envs)
     assert s["schema_version"] == "sf.creator_provenance_manifest.v0.1" and s["row_count"] == 5
-    assert s["founder_authored_count"] == 3  # controlled cases authored by founder
+    assert s["owner_authored_count"] == 3  # controlled cases authored by owner
     assert s["model_name_distribution"].get("null", 0) >= 5  # no model names anywhere
     assert s["deterministic_exported_count"] == 5  # every row has a factory exported stage
 

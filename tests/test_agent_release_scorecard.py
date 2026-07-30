@@ -1,6 +1,11 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -109,7 +114,7 @@ def test_release_scorecard_fails_product_boundary_violations(tmp_path: Path) -> 
                 "protected_repo": "ExampleProject",
                 "violations": [
                     {
-                        "path": "docs/cerberus-corpus-data-foundry.md",
+                        "path": "docs/claim_evidence-corpus-data-foundry.md",
                         "reason": "Factory-wide data asset.",
                     }
                 ],
@@ -149,6 +154,12 @@ def test_release_scorecard_fails_product_boundary_violations(tmp_path: Path) -> 
         text=True,
         capture_output=True,
         timeout=60,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")
+            + os.pathsep
+            + os.environ.get("PYTHONPATH", ""),
+        },
     )
 
     assert proc.returncode == 0, proc.stderr or proc.stdout

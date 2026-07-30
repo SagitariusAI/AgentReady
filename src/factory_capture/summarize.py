@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic, LLM-free summary over captured events. Optional --ollama enrichment degrades
 gracefully (and is off by default): if Ollama is not reachable, the deterministic summary still
 stands. A model summarizer consumes receipts; it never replaces them."""

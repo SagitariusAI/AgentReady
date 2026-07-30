@@ -1,14 +1,18 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Historical Chat Inbox v0.1 — a folder-drop bridge from factory_capture to the existing Agent Data
 Foundry historical-chat importer.
 
-The founder drops an OpenAI ChatGPT export (`.zip`) or a `conversations.json` into the inbox folder.
+The owner drops an OpenAI ChatGPT export (`.zip`) or a `conversations.json` into the inbox folder.
 `scan` stages each new item, runs the EXISTING `import-historical-chats` action **as a subprocess
 through factory_capture** (so the import is captured as a `command_run` receipt), writes an import
 manifest, and moves the item to processed/ or failed/. Duplicates (by sha256) are skipped.
 
 It does NOT reimplement the importer: zip extraction + conversations.json location + redaction +
-internal-only rights grading are all done by the foundry importer (`agent_data_foundry_lib.historical_chat`).
-Historical chats stay internal-only candidates — no promotion to gold, no schema/output drift, no network."""
+restricted-use rights grading are all done by the foundry importer (`agent_data_foundry_lib.historical_chat`).
+Historical chats stay restricted-use candidates — no promotion to gold, no schema/output drift, no network."""
 from __future__ import annotations
 
 import hashlib
@@ -82,7 +86,7 @@ def init_inbox(store: Store) -> dict:
     if created:
         write_json(paths["config"], {
             "schema": CONFIG_SCHEMA, "version": "0.1", "created_utc": now_iso(),
-            "poll_interval_s": 10, "internal_only": True, "promote_to_gold": False,
+            "poll_interval_s": 10, "restricted_use": True, "promote_to_gold": False,
         })
     return {"root": str(paths["base"]), "created": created, "subdirs": list(SUBDIRS)}
 
@@ -104,7 +108,7 @@ def _write_manifest(paths: dict, *, sha: str, source_name: str, kind: str, statu
         "import_exit_code": event.get("exit_code") if event else None,
         "import_output_root": output_root,
         "final_path": str(final_path),
-        "internal_only": True,
+        "restricted_use": True,
         "promoted_to_gold": False,
     }
     write_json(paths["manifests"] / f"{manifest_id}.manifest.json", manifest)

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -11,7 +15,7 @@ from agent_data_foundry_lib.mining import (
     receipt_claims_promotion,
     receipt_is_supported_claim_candidate,
     unsupported_promotion_missing_evidence,
-    upgrade_cerberus_gold_schema,
+    upgrade_claim_evidence_gold_schema,
 )
 from agent_data_foundry_lib.receipts import PROMOTABLE_POLICIES, discover_receipts
 
@@ -59,7 +63,7 @@ def test_mine_supported_claims_writes_gold(tmp_path: Path):
     _write_receipt(tmp_path, "repoA", "t1", "r1", _strong_receipt("s1"))
     result = mine_supported_claims(tmp_path)
     assert result["label"] == "SUPPORTED_CLAIM" and result["mined"] == 1
-    assert result["schema_version"] == "agentready.data_foundry.cerberus_label_mining.v1"
+    assert result["schema_version"] == "agentready.data_foundry.claim_evidence_label_mining.v1"
     rows = gold_jsonl_path(tmp_path).read_text(encoding="utf-8").strip().splitlines()
     assert len(rows) == 1 and json.loads(rows[0])["incident_type"] == "SUPPORTED_CLAIM"
 
@@ -78,8 +82,8 @@ def test_mine_unsupported_promotions_and_upgrade_smoke(tmp_path: Path):
     _write_receipt(tmp_path, "repoA", "t1", "u1", bad)
     res = mine_unsupported_promotions(tmp_path)
     assert res["label"] == "UNSUPPORTED_PROMOTION" and res["mined"] == 1
-    up = upgrade_cerberus_gold_schema(tmp_path)  # gold now has 1 current-schema row
-    assert up["schema_version"] == "agentready.data_foundry.cerberus_gold_upgrade.v1"
+    up = upgrade_claim_evidence_gold_schema(tmp_path)  # gold now has 1 current-schema row
+    assert up["schema_version"] == "agentready.data_foundry.claim_evidence_gold_upgrade.v1"
     assert up["preserved_current_schema_rows"] >= 1
 
 
@@ -88,7 +92,7 @@ def test_reexported_identity():
     import agent_data_foundry_lib as adfl
 
     assert adf.mine_supported_claims is mine_supported_claims
-    assert adf.upgrade_cerberus_gold_schema is upgrade_cerberus_gold_schema
+    assert adf.upgrade_claim_evidence_gold_schema is upgrade_claim_evidence_gold_schema
     assert adf.discover_receipts is discover_receipts
     assert adfl.mine_vault_code_confusion.__module__ == "agent_data_foundry_lib.mining"
     assert adfl.PROMOTABLE_POLICIES is PROMOTABLE_POLICIES

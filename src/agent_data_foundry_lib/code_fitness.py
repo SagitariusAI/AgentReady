@@ -1,21 +1,8 @@
-"""Code Fitness Runner for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase G1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the deterministic, DRY-RUN / report-only code-fitness scanner moved verbatim out of
-agent_data_foundry.py with **no behavior change**. A near-leaf: it imports only the
-sibling io_jsonl module (for JSON report IO) and the stdlib (ast/re/subprocess/
-shutil/sys) — never back from agent_data_foundry, so there is no import cycle. The
-LogosOne curriculum fields on each finding are inline strings owned by this scanner,
-not a logosone import.
-
-The runner turns the code-integrity standards into machine-checkable reports
-(ast + regex). It NEVER mutates code, NEVER auto-fixes, and NEVER writes under
-40_release_ready. Findings separate BLOCK / WARN / INFO and carry LogosOne
-curriculum fields. Unknown is explicit ("not_evaluated" / null), never a silent
-pass. Inherited debt is reported as state, not blamed as new debt. Tracked Python
-files are discovered via `git ls-files`; optional scanners (ruff/gitleaks/bandit/
-pip-audit/semgrep) are recorded as available / not_available, never a failure.
-"""
+"""Code Fitness Runner for the Agent Data Foundry."""
 from __future__ import annotations
 
 import ast
@@ -95,7 +82,7 @@ def _cf_structure(root: Path, files: list[Path]) -> tuple[list[dict[str, Any]], 
         relf = rel(root, f)
         sizes.append({"file": relf, "lines": nlines})
         if nlines > 900:
-            findings.append(_cf_finding("BLOCK", "structure", f"{relf}: {nlines} lines (>900) -- god-file candidate; split by responsibility or get a founder-approved exemption",
+            findings.append(_cf_finding("BLOCK", "structure", f"{relf}: {nlines} lines (>900) -- god-file candidate; split by responsibility or get a owner-approved exemption",
                                         file=relf, family="module_structure", sign="-", anchor="WORKFLOW", repair_target="split by responsibility"))
         elif nlines > 600:
             findings.append(_cf_finding("WARN", "structure", f"{relf}: {nlines} lines (>600) -- responsibility review",

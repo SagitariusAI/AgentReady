@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import hashlib
@@ -9,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from agent_public_package import build
-from agent_publication_guard import scan_archive, scan_source
+from agent_publication_guard import PYTHON_HEADER, scan_archive, scan_source
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -76,3 +80,32 @@ def test_guard_rejects_database_and_prepopulated_runtime_payloads(tmp_path: Path
     findings, _ = scan_source(repo)
     assert findings
     assert any(item.category in {"persistence_payload", "runtime_path"} for item in findings)
+
+
+def test_guard_requires_canonical_header_on_python_files(tmp_path: Path):
+    repo = _repo(tmp_path)
+    (repo / "missing_header.py").write_text("VALUE = 1\n", encoding="utf-8")
+    findings, _ = scan_source(repo)
+    assert any(item.category == "python_header" for item in findings)
+
+    (repo / "missing_header.py").write_text(PYTHON_HEADER + "\nVALUE = 1\n", encoding="utf-8")
+    findings, _ = scan_source(repo)
+    assert not any(item.category == "python_header" for item in findings)
+
+
+def test_guard_rejects_escaped_paths_private_assets_and_real_email(tmp_path: Path):
+    repo = _repo(tmp_path)
+    private_name = "Cer" + "berus"
+    escaped_path = "D:" + "\\\\" + "AgentReady" + "\\\\" + "config"
+    real_email = "person@" + "samplemail.com"
+    (repo / "unsafe.py").write_text(
+        PYTHON_HEADER
+        + "\n"
+        + f"PRIVATE_NAME = {private_name!r}\n"
+        + f"PRIVATE_PATH = {escaped_path!r}\n"
+        + f"CONTACT = {real_email!r}\n",
+        encoding="utf-8",
+    )
+    findings, _ = scan_source(repo)
+    categories = {item.category for item in findings}
+    assert {"private_asset", "production_path", "email_address"} <= categories

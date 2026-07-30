@@ -1,17 +1,21 @@
-"""Internal Factory Dojo builder + signal-coverage / source-signal-safety reports.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-The internal-only Dojo export and its instrumentation reports: ``build_inhouse_dojo`` grades every
+"""Internal Curated Dataset builder + signal-coverage / source-signal-safety reports.
+
+The restricted-use Dataset export and its instrumentation reports: ``build_curated_dataset`` grades every
 labeled claim-evidence record for data_need / data_rights, attaches source-signal capture +
 diff-test integrity + tool-call trajectory, computes signal coverage and human-correction lineage
-and model-route cost, and writes the internal Dojo JSONL + reports (never under 40_release_ready,
-never mutating sealed Cerberus v0.1, historical segments stay unlabeled candidates). The
+and model-route cost, and writes the internal Dataset JSONL + reports (never under 40_release_ready,
+never mutating sealed ClaimEvidence v0.1, historical segments stay unlabeled candidates). The
 signal-coverage families (``SIGNAL_COVERAGE_FAMILIES`` / ``SIGNAL_COVERAGE_FAMILY_FIELDS``) and the
 ``signal_coverage_report`` / ``source_signal_safety_report`` wrappers live here.
 
-Clean leaf: composes the Dojo path (``dojo.inhouse_dojo_root``), the Gold corpus (``gold_corpus``),
+Clean leaf: composes the Dataset path (``dataset.curated_dataset_root``), the Gold corpus (``gold_corpus``),
 the rights inference (``rights``), the source-signal capture + safety scanners
 (``source_signals`` / ``safety_scan``), ``io_jsonl``, and the ``paths`` foundation -- no back-import
-to agent_data_foundry. The Dojo output files, row counts, coverage/rights/safety reports, schema
+to agent_data_foundry. The Dataset output files, row counts, coverage/rights/safety reports, schema
 strings, and the no-fabricated-labels contract are preserved byte-for-byte from the pre-split module.
 """
 from __future__ import annotations
@@ -19,7 +23,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agent_data_foundry_lib.dojo import inhouse_dojo_root
+from agent_data_foundry_lib.curated_dataset import curated_dataset_root
 from agent_data_foundry_lib.gold_corpus import gold_jsonl_path
 from agent_data_foundry_lib.io_jsonl import append_jsonl, as_dict, now_utc, read_jsonl, rel, sha256_file, write_json
 from agent_data_foundry_lib.paths import AGENTREADY_HOME, report_data_foundry_path
@@ -72,7 +76,7 @@ SIGNAL_COVERAGE_FAMILY_FIELDS = {
     ),
     "human_correction_lineage": (
         ["next_actions", "promotion_blockers", "handoff", "rationale"],
-        ["human_correction", "founder_override_reason", "review_decision", "correction_applied"],
+        ["human_correction", "owner_override_reason", "review_decision", "correction_applied"],
     ),
     "model_route_cost": (
         ["agent", "model_origin", "repo", "task_id"],
@@ -143,7 +147,7 @@ def build_human_correction_lineage(record: dict[str, Any]) -> dict[str, Any]:
     """Capture the correction lineage -- claim -> contradiction -> review decision
     -> corrected outcome -> future rule -- from a record's existing claim/evidence
     fields. Most rows are MACHINE adjudication (the sentinel verdict); human and
-    founder fields are emitted only when explicitly present, never fabricated, so
+    owner fields are emitted only when explicitly present, never fabricated, so
     the human-specific signal honestly stays absent until a human actually
     corrects something."""
     alignment = as_dict(record.get("claim_evidence_alignment"))
@@ -155,7 +159,7 @@ def build_human_correction_lineage(record: dict[str, Any]) -> dict[str, Any]:
     claim = str(record.get("abstracted_agent_claim") or input_view.get("claim") or "")
     evidence_contradicts = bool(alignment.get("evidence_contradicts_claim"))
     contradiction_type = str(alignment.get("contradiction_type") or "") or None
-    # An explicit upstream human/founder field wins over the machine attribution.
+    # An explicit upstream human/owner field wins over the machine attribution.
     agent_corrected_after_evidence = bool(record.get("agent_corrected_only_after_evidence") or alignment.get("agent_corrected_only_after_evidence"))
     review_decision = str(record.get("review_decision") or gold.get("verdict") or verdict or "") or None
     corrected_outcome = str(state.get("artifact_state_approved") or gold.get("required_action") or "") or None
@@ -174,14 +178,14 @@ def build_human_correction_lineage(record: dict[str, Any]) -> dict[str, Any]:
             or state.get("promotion_allowed") is False
         )
 
-    founder_override_reason = record.get("founder_override_reason")
-    founder_override_reason = str(founder_override_reason) if founder_override_reason else None
+    owner_override_reason = record.get("owner_override_reason")
+    owner_override_reason = str(owner_override_reason) if owner_override_reason else None
     human_correction = record.get("human_correction")
     human_correction = str(human_correction) if human_correction else None
-    human_correction_present = bool(founder_override_reason or human_correction or agent_corrected_after_evidence)
+    human_correction_present = bool(owner_override_reason or human_correction or agent_corrected_after_evidence)
 
-    if founder_override_reason:
-        correction_source = "founder_override"
+    if owner_override_reason:
+        correction_source = "owner_override"
     elif human_correction_present:
         correction_source = "human_review"
     elif review_decision:
@@ -199,7 +203,7 @@ def build_human_correction_lineage(record: dict[str, Any]) -> dict[str, Any]:
         "correction_applied": correction_applied,
         "future_rule": future_rule,
         "downstream_defect": downstream_defect,
-        "founder_override_reason": founder_override_reason,
+        "owner_override_reason": owner_override_reason,
         "human_correction": human_correction,
         "human_correction_present": human_correction_present,
         "correction_source": correction_source,
@@ -209,7 +213,7 @@ def build_human_correction_lineage(record: dict[str, Any]) -> dict[str, Any]:
 def _captured_correction_fields(block: Any) -> set[str]:
     """Map a captured human_correction_lineage block onto the coverage future-field
     names. A machine adjudication captures review_decision + correction_applied;
-    human_correction / founder_override_reason stay absent until a human acts."""
+    human_correction / owner_override_reason stay absent until a human acts."""
     present: set[str] = set()
     if not isinstance(block, dict):
         return present
@@ -218,8 +222,8 @@ def _captured_correction_fields(block: Any) -> set[str]:
         present.add("correction_applied")
     if block.get("human_correction_present"):
         present.add("human_correction")
-    if block.get("founder_override_reason"):
-        present.add("founder_override_reason")
+    if block.get("owner_override_reason"):
+        present.add("owner_override_reason")
     return present
 
 
@@ -404,7 +408,7 @@ def _signal_coverage_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     # Recommend the families with the largest missing-signal gap first.
     recommended = [family for family, _ in sorted(family_missing_weight.items(), key=lambda kv: (-kv[1], kv[0]))[:3]]
     return {
-        "schema_version": "sf.factory_dojo.signal_coverage_report.v0.1",
+        "schema_version": "sf.curated_dataset.signal_coverage_report.v0.1",
         "generated_at": now_utc(),
         "records_seen": len(rows),
         "records_with_signal_coverage": with_coverage,
@@ -415,14 +419,14 @@ def _signal_coverage_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
-    """Internal-only Factory Dojo export. Grades every record for data_need /
+def build_curated_dataset(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
+    """Restricted-use Curated Dataset export. Grades every record for data_need /
     data_rights / model_origin, keeps only technically valuable, non-quarantine,
-    valid rows, and emits an INHOUSE_READY internal dataset. Never RELEASE_READY,
+    valid rows, and emits an CURATED_READY internal dataset. Never RELEASE_READY,
     never under 40_release_ready, never externally exportable."""
     root = Path(root)
-    dojo_root = inhouse_dojo_root(root)
-    dojo_root.mkdir(parents=True, exist_ok=True)
+    dataset_root = curated_dataset_root(root)
+    dataset_root.mkdir(parents=True, exist_ok=True)
     rows = read_jsonl(gold_jsonl_path(root))
 
     emitted: list[dict[str, Any]] = []
@@ -479,7 +483,7 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         augmented["signal_coverage"] = build_signal_coverage(augmented)
         # Training rows keep only DERIVED counts, never the raw/redacted patch
         # text. Counts were just derived above; now drop the diff text so it
-        # never survives into Dojo output.
+        # never survives into Dataset output.
         augmented = strip_diff_text_from_row(augmented)
         emitted.append(augmented)
         technical_value_counts[need["technical_value"]] = technical_value_counts.get(need["technical_value"], 0) + 1
@@ -488,13 +492,13 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         provenance = str(record.get("provenance_type") or "NATURAL_RECEIPT")
         source_counts[provenance] = source_counts.get(provenance, 0) + 1
 
-    jsonl_path = dojo_root / "factory_dojo_internal.jsonl"
+    jsonl_path = dataset_root / "curated_dataset_internal.jsonl"
     append_jsonl(jsonl_path, emitted)
 
     manifest = {
-        "schema_version": "agentready.data_foundry.inhouse_dojo.v1",
-        "dataset_id": "factory-dojo-internal",
-        "status": "INHOUSE_READY",
+        "schema_version": "agentready.data_foundry.curated_dataset.v1",
+        "dataset_id": "factory-dataset-internal",
+        "status": "CURATED_READY",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
@@ -508,13 +512,13 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         "commercial_sale_allowed": False,
         "jsonl_path": rel(root, jsonl_path),
     }
-    write_json(dojo_root / "factory_dojo_manifest.json", manifest)
+    write_json(dataset_root / "curated_dataset_manifest.json", manifest)
 
     export_rows = sum(1 for row in emitted if row["data_rights"].get("export_allowed"))
     sale_rows = sum(1 for row in emitted if row["data_rights"].get("commercial_sale_allowed"))
     quarantine_rows = sum(1 for row in emitted if row["data_rights"].get("grade") == "F_QUARANTINE")
     rights_report = {
-        "schema_version": "agentready.data_foundry.inhouse_dojo_rights.v1",
+        "schema_version": "agentready.data_foundry.curated_dataset_rights.v1",
         "generated_at": now_utc(),
         "record_count": len(emitted),
         "export_allowed_rows": export_rows,
@@ -522,15 +526,15 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         "quarantine_rows": quarantine_rows,
         "rows_missing_data_rights": sum(1 for row in emitted if not row.get("data_rights")),
         "rows_missing_data_need": sum(1 for row in emitted if not row.get("data_need")),
-        "all_internal_only": export_rows == 0 and sale_rows == 0 and quarantine_rows == 0,
+        "all_restricted_use": export_rows == 0 and sale_rows == 0 and quarantine_rows == 0,
         "data_rights_grade_counts": grade_counts,
     }
-    write_json(dojo_root / "factory_dojo_rights_report.json", rights_report)
+    write_json(dataset_root / "curated_dataset_rights_report.json", rights_report)
 
-    rejection_path = dojo_root / "factory_dojo_rejections.jsonl"
+    rejection_path = dataset_root / "curated_dataset_rejections.jsonl"
     append_jsonl(rejection_path, rejections)
     quality_report = {
-        "schema_version": "agentready.data_foundry.inhouse_dojo_quality.v1",
+        "schema_version": "agentready.data_foundry.curated_dataset_quality.v1",
         "generated_at": now_utc(),
         "rows_seen": len(rows),
         "rows_emitted": len(emitted),
@@ -543,15 +547,15 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         "rights_grade_distribution": grade_counts,
         "primary_need_distribution": primary_need_counts,
     }
-    write_json(dojo_root / "factory_dojo_quality_report.json", quality_report)
-    write_json(dojo_root / "factory_dojo_signal_coverage_report.json", _signal_coverage_report(emitted))
+    write_json(dataset_root / "curated_dataset_quality_report.json", quality_report)
+    write_json(dataset_root / "curated_dataset_signal_coverage_report.json", _signal_coverage_report(emitted))
 
     quarantined_rows = sum(
         1 for rej in rejections
         if any(str(reason).startswith("source_signal_quarantine:") for reason in rej.get("reasons", []))
     )
     safety_report = {
-        "schema_version": "sf.factory_dojo.source_signal_safety_report.v0.1",
+        "schema_version": "sf.curated_dataset.source_signal_safety_report.v0.1",
         "scope": "full_scan_including_quarantined",
         "generated_at": now_utc(),
         "rows_scanned": rows_scanned,
@@ -560,11 +564,11 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         "quarantined_rows": quarantined_rows,
         "all_clear": safety_status_counts.get("QUARANTINE", 0) == 0 and quarantined_rows == 0,
     }
-    write_json(dojo_root / "factory_dojo_source_signal_safety_report.json", safety_report)
-    write_json(report_data_foundry_path(root, "cerberus-inhouse-dojo-latest.json"), manifest)
+    write_json(dataset_root / "curated_dataset_source_signal_safety_report.json", safety_report)
+    write_json(report_data_foundry_path(root, "claim_evidence-curated-dataset-latest.json"), manifest)
 
     return {
-        "status": "INHOUSE_READY",
+        "status": "CURATED_READY",
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
@@ -574,29 +578,29 @@ def build_inhouse_dojo(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
         "external_release_allowed": False,
         "commercial_sale_allowed": False,
         "jsonl_path": rel(root, jsonl_path),
-        "manifest_path": rel(root, dojo_root / "factory_dojo_manifest.json"),
+        "manifest_path": rel(root, dataset_root / "curated_dataset_manifest.json"),
     }
 
 
 def signal_coverage_report(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
-    """Re-derive the signal-coverage report from the emitted internal Dojo rows."""
+    """Re-derive the signal-coverage report from the emitted internal Dataset rows."""
     root = Path(root)
-    dojo_root = inhouse_dojo_root(root)
-    dojo_root.mkdir(parents=True, exist_ok=True)
-    rows = read_jsonl(dojo_root / "factory_dojo_internal.jsonl")
+    dataset_root = curated_dataset_root(root)
+    dataset_root.mkdir(parents=True, exist_ok=True)
+    rows = read_jsonl(dataset_root / "curated_dataset_internal.jsonl")
     report = _signal_coverage_report(rows)
-    write_json(dojo_root / "factory_dojo_signal_coverage_report.json", report)
+    write_json(dataset_root / "curated_dataset_signal_coverage_report.json", report)
     return report
 
 
 def source_signal_safety_report(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
-    """Re-derive the source-signal safety summary from the emitted Dojo rows'
+    """Re-derive the source-signal safety summary from the emitted Dataset rows'
     attached source_signal_safety blocks. Quarantined rows never reach the
     emitted set, so this reports PASS/REDACTED on what survived the gate."""
     root = Path(root)
-    dojo_root = inhouse_dojo_root(root)
-    dojo_root.mkdir(parents=True, exist_ok=True)
-    rows = read_jsonl(dojo_root / "factory_dojo_internal.jsonl")
+    dataset_root = curated_dataset_root(root)
+    dataset_root.mkdir(parents=True, exist_ok=True)
+    rows = read_jsonl(dataset_root / "curated_dataset_internal.jsonl")
     status_counts: dict[str, int] = {
         _CLEAN_OUTCOME: 0,
         "REDACTED": 0,
@@ -616,7 +620,7 @@ def source_signal_safety_report(root: Path | str = AGENTREADY_HOME) -> dict[str,
             detector = str(finding.get("detector") or "unknown")
             detector_counts[detector] = detector_counts.get(detector, 0) + 1
     report = {
-        "schema_version": "sf.factory_dojo.source_signal_safety_report.v0.1",
+        "schema_version": "sf.curated_dataset.source_signal_safety_report.v0.1",
         "scope": "emitted_survivors_only",
         "generated_at": now_utc(),
         "rows_scanned": rows_scanned,
@@ -624,5 +628,5 @@ def source_signal_safety_report(root: Path | str = AGENTREADY_HOME) -> dict[str,
         "detector_counts": detector_counts,
         "all_clear": status_counts.get("QUARANTINE", 0) == 0,
     }
-    write_json(dojo_root / "factory_dojo_source_signal_safety_report.json", report)
+    write_json(dataset_root / "curated_dataset_source_signal_safety_report.json", report)
     return report

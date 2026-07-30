@@ -1,16 +1,8 @@
-"""Path normalization + claim-overlap + protected-intent — the claim/guard matching brain.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Port of `bin/agent-coordination-lib.ps1`: `Normalize-AgentPath` (L175), `ConvertTo-AgentPathList`
-(L181-202), `Test-AgentPathOverlap` (L258-264), `Get-AgentProtectedSurface` (L266-303),
-`Test-AgentProtectedPathIntent` (L305-328), `Get-AgentPathConflicts` (L330-358).
-
-CRITICAL invariant (PS L181-193): each `-Paths` element is split on commas FIRST, because a
-non-PowerShell caller (bash/JSON/Python) routinely passes the single string "a,b,c". Without splitting,
-that whole blob is stored as ONE path the commit-guard can never match — wrongly BLOCKING a legitimately
-claimed commit. This is exactly why a Python caller already works through the guard today.
-
-PowerShell `-match` is case-insensitive, so the protected-surface patterns use re.IGNORECASE.
-"""
+"""Path normalization + claim-overlap + protected-intent — the claim/guard matching brain."""
 from __future__ import annotations
 
 import re

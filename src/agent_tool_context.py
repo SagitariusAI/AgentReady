@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Model-facing tool context -- source-to-authority scoped tool records.
 
 **Hard rule:** no model-facing tool list may present a flat, unscoped list of tools. Every exposed tool
@@ -51,7 +55,7 @@ REQUIRED_ENTRY_FIELDS = (
 )
 
 _NETWORK_HINTS = ("research-intake", "web-explorer", "ollama", "research-scheduler", "company-offices",
-                  "founder-publish", "registry-tools", "renovate-check")
+                  "owner-publish", "registry-tools", "renovate-check")
 _STATE_HINTS = ("coordination-init", "task-", "conflict-check", "worktree", "commit-guard")
 _ARTIFACT_HINTS = ("package", "sbom", "secret-deep-scan")
 
@@ -79,7 +83,7 @@ def cmd_name(command: str) -> str:
 
 
 def _module_for(cmd: str, home: Path = AGENTREADY_HOME) -> str | None:
-    """The Python module that owns this tool's durable logic, or None if it is a pure PowerShell adapter."""
+    """Return the Python module that owns a tool, or ``None`` for an external adapter."""
     module = cmd.replace("-", "_")
     if (home / "src" / f"{module}.py").exists():
         return module

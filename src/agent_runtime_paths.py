@@ -1,14 +1,8 @@
-"""Neutral runtime-path foundation for the AgentReady Factory.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-This is the *foundation* layer: the canonical per-repo coordination-store identity used by the
-coordination engine, the commit guard, report-submit, and any other durable subsystem. It depends on
-nothing else in the Factory (stdlib only) so every consumer can sit above it without a cycle.
-
-The store-identity algorithm is byte-identical to PowerShell `Get-AgentStateRoot`
-(`bin/agent-coordination-lib.ps1` L12-36) and to `agent_report_submit_lib.write.state_root` — proven by
-`smoke/agent_runtime_paths_parity_smoke.py`. The digest keys on the **git common dir** (not the worktree
-path), so a task started in a worktree and one in the main tree resolve to the *same* store.
-"""
+"""Neutral runtime-path foundation for the AgentReady Factory."""
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +14,7 @@ AGENTREADY_HOME = Path(os.environ.get("AGENTREADY_HOME") or (Path.home() / ".age
 COORDINATION_ROOT = AGENTREADY_HOME / "coordination"
 WORKTREE_ROOT = AGENTREADY_HOME / "worktrees"
 
-# The coordination store layout (PowerShell Initialize-AgentState L95-108).
+
 STORE_SUBDIRS = (
     "tasks", "events", "task-reports", "handoffs",
     "decisions", "locks", "versions", "reviews", "worktrees",
@@ -52,7 +46,7 @@ def git_common_dir(repo: Path) -> Path | None:
 def repo_name(repo: Path) -> str:
     """Repo name = the dir that owns the .git common dir (worktree-stable), else the path leaf.
 
-    Mirrors PowerShell `Get-AgentCoordinationRepoName` / the repoName branch of `Get-AgentStateRoot`.
+    The normalized name is stable across supported operating systems.
     """
     common = git_common_dir(repo)
     if common and common.name.lower() == ".git":
@@ -63,8 +57,7 @@ def repo_name(repo: Path) -> str:
 def state_root(repo: str | Path | None = None) -> Path:
     """The per-repo coordination store: `<COORDINATION_ROOT>/<repo_name>-<digest>`.
 
-    digest = sha256(lowercased git-common-dir path)[:16]  — byte-identical to PowerShell and to
-    agent_report_submit_lib.write.state_root.
+    digest = sha256(lowercased git-common-dir path)[:16].
     """
     repo = resolve_repo(repo)
     identity: Path = repo
@@ -76,6 +69,6 @@ def state_root(repo: str | Path | None = None) -> Path:
 
 
 def worktree_root(repo: str | Path | None = None) -> Path:
-    """Where this repo's external worktrees live (PowerShell pointer.json `worktree_root`)."""
+    """Return the configured external-worktree root for this repository."""
     repo = resolve_repo(repo)
     return WORKTREE_ROOT / repo_name(repo)

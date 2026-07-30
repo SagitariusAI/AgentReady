@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import argparse
@@ -134,7 +138,7 @@ def run_smokes() -> list[dict[str, Any]]:
         record("sympy_quadratic", False, str(exc))
 
     try:
-        from z3 import And, Bool, Not, Solver, sat
+        from z3 import And, Bool, Not, Solver, sat  # pyright: ignore[reportMissingImports]
 
         a = Bool("a")
         b = Bool("b")
@@ -155,7 +159,7 @@ def run_smokes() -> list[dict[str, Any]]:
         record("pandas_groupby", False, str(exc))
 
     try:
-        import duckdb
+        import duckdb  # pyright: ignore[reportMissingImports]
 
         row = duckdb.sql("select sum(x) from (values (2), (3), (5)) t(x)").fetchone()
         value = row[0] if row is not None else None

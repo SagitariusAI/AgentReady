@@ -1,11 +1,8 @@
-"""Pure IO / JSONL / report helpers for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase A of the module split (see docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-these helpers were extracted verbatim from agent_data_foundry.py with **no behavior
-change** -- identical U+2028/U+2029 JSONL escaping, identical split("\\n") readback,
-identical output paths and JSON formatting. agent_data_foundry.py re-imports/re-exports
-these names so all existing imports, tests, and CLI behavior are unchanged.
-"""
+"""Pure IO / JSONL / report helpers for the Agent Data Foundry."""
 from __future__ import annotations
 
 import hashlib

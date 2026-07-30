@@ -1,7 +1,11 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Structured memory-use receipts and append-only compliance reporting.
 
 New substantive tasks are memory-audited by default.  Completion requires proof that the
-agent queried the memory graph and then either read a relevant Serena memory or explicitly
+agent queried the memory graph and then either read relevant durable memory or explicitly
 recorded why the query found no relevant memory.  Durable memory writes and graph refreshes
 are also recorded, but are required only when a write occurred.
 
@@ -24,12 +28,12 @@ from agent_coordination.store import ensure_state
 SCHEMA_VERSION = "agentready.memory_compliance.v1"
 RECEIPT_KINDS = (
     "graph_query",
-    "serena_read",
+    "memory_read",
     "durable_write",
     "graph_refresh",
     "no_relevant_memory",
 )
-READ_KINDS = {"serena_read", "no_relevant_memory"}
+READ_KINDS = {"memory_read", "no_relevant_memory"}
 
 
 def new_policy(*, required: bool = True, substantive: bool = True) -> dict[str, Any]:
@@ -78,9 +82,9 @@ def build_receipt(
         raise ValueError("Memory receipt requires an evidence pointer or interpreted result.")
     if kind in {"graph_query", "no_relevant_memory"} and not fields["query"]:
         raise ValueError(f"{kind} receipt requires the query that was executed.")
-    if kind in {"serena_read", "durable_write"}:
+    if kind in {"memory_read", "durable_write"}:
         if not fields["store"]:
-            raise ValueError(f"{kind} receipt requires the Serena store.")
+            raise ValueError(f"{kind} receipt requires the memory store.")
         if not fields["memory_name"]:
             raise ValueError(f"{kind} receipt requires the memory name.")
     if kind == "no_relevant_memory" and not fields["reason"]:
@@ -129,7 +133,7 @@ def compliance_summary(task: dict[str, Any]) -> dict[str, Any]:
         if "graph_query" not in kinds:
             issues.append("Missing memory graph query receipt.")
         if not any(kind in READ_KINDS for kind in kinds):
-            issues.append("Missing Serena read or explicit no-relevant-memory receipt.")
+            issues.append("Missing memory read or explicit no-relevant-memory receipt.")
         if "durable_write" in kinds and "graph_refresh" not in kinds:
             issues.append("Durable memory write has no graph refresh receipt.")
     status = "not_required"

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Coordination quality gates — port of `Get-AgentTextLength` (L441), `Test-AgentTaskStartQuality`
 (L446-467), `Test-AgentClaimQuality` (L469-476), `Test-AgentHandoffQuality` (L478-501), and
 `Write-AgentQualityFailure` (L503-514). These are governance thresholds, not cosmetics — preserved exactly."""

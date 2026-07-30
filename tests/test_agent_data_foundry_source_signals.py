@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -193,12 +197,12 @@ def test_scan_source_signals_noop_on_missing() -> None:
 def test_scan_source_signals_redacts_user_path_and_email() -> None:
     safe, safety = scan_source_signals(_signals(
         paths_touched=[r"C:/Users/sample-user/notes.py"],
-        commands_run=["echo contact sagitariusart3d@gmail.com"],
+        commands_run=["echo contact contact@example.invalid"],
     ))
     assert safety["scan_status"] == "REDACTED"
     # Username and email are scrubbed in place; nothing leaks into the safe copy.
     assert "sample-user" not in json.dumps(safe)
-    assert "sagitariusart3d@gmail.com" not in json.dumps(safe)
+    assert "contact@example.invalid" not in json.dumps(safe)
     assert "<REDACTED_USER>" in safe["paths_touched"][0]
     assert "<REDACTED:EMAIL>" in safe["commands_run"][0]
     assert set(safety["redacted_fields"]) == {"paths_touched", "commands_run"}

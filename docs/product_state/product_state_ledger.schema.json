@@ -28,7 +28,7 @@
       "enum": [
         "DOC_DEFINED_ONLY", "CODE_EXISTS", "TEST_EXISTS", "GATE_GREEN",
         "PACKAGED", "RUNTIME_SMOKE_PASSED", "USER_WORKFLOW_VERIFIED",
-        "FOUNDER_ACCEPTED", "COMMERCIAL_CLEARANCE_PENDING"
+        "OWNER_ACCEPTED", "COMMERCIAL_CLEARANCE_PENDING"
       ]
     },
     "evidence_item": {
@@ -46,7 +46,7 @@
       "required": [
         "component_id", "component_name", "status", "evidence_tags", "evidence",
         "blocked_by", "not_yet", "related_docs", "related_commits", "related_tests",
-        "related_receipts", "founder_acceptance", "commercial_clearance",
+        "related_receipts", "owner_acceptance", "commercial_clearance",
         "last_verified_at", "verifier"
       ],
       "additionalProperties": false,
@@ -62,7 +62,7 @@
         "related_commits": {"type": "array", "items": {"type": "string"}},
         "related_tests": {"type": "array", "items": {"type": "string"}},
         "related_receipts": {"type": "array", "items": {"type": "string"}},
-        "founder_acceptance": {"type": ["string", "null"]},
+        "owner_acceptance": {"type": ["string", "null"]},
         "commercial_clearance": {"type": ["string", "null"]},
         "last_verified_at": {"type": ["string", "null"]},
         "verifier": {"type": ["string", "null"]}

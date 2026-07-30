@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import subprocess
@@ -76,8 +80,8 @@ def test_required_memory_receipts_block_commit_until_compliant(repo):
         evidence="factory-memory-graph query receipt",
     ))
     mc.append_receipt(task, mc.build_receipt(
-        "t1", kind="serena_read", agent="claude", store="serena-factory",
-        memory_name="global/factory-doctrine-and-protocols", evidence="Serena read receipt",
+        "t1", kind="memory_read", agent="claude", store="shared-memory",
+        memory_name="global/factory-doctrine-and-protocols", evidence="memory read receipt",
     ))
     tasks.write_task(repo, task)
     assert commit_guard.evaluate(repo, paths=["src/a.py"], agent="claude")["verdict"] == "allow"

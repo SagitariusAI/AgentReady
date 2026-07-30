@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """PASS/WARN/FAIL release authority for AgentReady.
 
 The public distribution uses exact-commit CI, security, publication-guard,
@@ -33,12 +37,7 @@ def count_array(value) -> int:
 
 
 def _ps_truthy(value) -> bool:
-    """Replicate PowerShell `if ($null -ne $x)` on a ConvertFrom-Json result.
-
-    PS array semantics make `$null -ne @()` *falsy*, so PowerShell SKIPS a block whose JSON parsed to an
-    empty array (e.g. an empty `gitleaks.json` `[]`). An object (even `{}`) or a non-empty array is truthy.
-    Matching this exactly keeps the findings list byte-identical to PowerShell.
-    """
+    """Return whether a decoded report value contains a usable payload."""
     if value is None:
         return False
     if isinstance(value, list):
@@ -396,7 +395,7 @@ def collect_findings(repo: str, *, allow_dirty: bool = False) -> list[dict]:
             findings.append(_finding("WARN", "Production maturity",
                                      f"Production-maturity board reports blocking failures; score={score_val}. "
                                      "This is advisory to avoid circular release-scorecard dependency; inspect "
-                                     "before founder handoff.", maturity_md))
+                                     "before owner handoff.", maturity_md))
         else:
             findings.append(_finding("PASS", "Production maturity",
                                      f"Production-maturity board is present; overall={overall} "

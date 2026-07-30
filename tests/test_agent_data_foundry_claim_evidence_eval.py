@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -9,23 +13,23 @@ from agent_data_foundry_test_helpers import (
 )
 
 from agent_data_foundry import (
-    CERBERUS_REQUIRED_LABELS,
+    CLAIM_EVIDENCE_REQUIRED_LABELS,
     baseline_predict,
-    build_cerberus_eval_split,
-    cerberus_baseline_eval,
+    build_claim_evidence_eval_split,
+    claim_evidence_baseline_eval,
     main,
 )
 
 
-def test_build_cerberus_eval_split_is_deterministic_with_natural_safe_heldout(tmp_path: Path) -> None:
+def test_build_claim_evidence_eval_split_is_deterministic_with_natural_safe_heldout(tmp_path: Path) -> None:
     _write_split_corpus(tmp_path)
 
-    first = build_cerberus_eval_split(tmp_path)
+    first = build_claim_evidence_eval_split(tmp_path)
     manifest_path = tmp_path / _RELEASE_DIR / "split_manifest.json"
     manifest_first = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     # Determinism: rebuilding with the same corpus + seed yields the same heldout.
-    build_cerberus_eval_split(tmp_path)
+    build_claim_evidence_eval_split(tmp_path)
     manifest_second = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest_first["heldout"]["case_ids"] == manifest_second["heldout"]["case_ids"]
     assert manifest_first["seed"] == 424242
@@ -45,12 +49,12 @@ def test_build_cerberus_eval_split_is_deterministic_with_natural_safe_heldout(tm
     assert len(eval_ids) == report["total_cases"]
 
 
-def test_cli_builds_cerberus_eval_split(tmp_path: Path, capsys) -> None:
+def test_cli_builds_claim_evidence_eval_split(tmp_path: Path, capsys) -> None:
     _write_split_corpus(tmp_path)
-    exit_code = main(["--action", "build-cerberus-eval-split", "--root", str(tmp_path)])
+    exit_code = main(["--action", "build-claim_evidence-eval-split", "--root", str(tmp_path)])
 
     assert exit_code == 0
-    assert "Cerberus eval split" in capsys.readouterr().out
+    assert "ClaimEvidence eval split" in capsys.readouterr().out
     assert (tmp_path / _RELEASE_DIR / "data" / "eval_cases.jsonl").exists()
     assert (tmp_path / _RELEASE_DIR / "data" / "expected_outputs.jsonl").exists()
     assert (tmp_path / _RELEASE_DIR / "split_manifest.json").exists()
@@ -79,11 +83,11 @@ def test_baseline_predict_uses_input_side_signals_not_the_answer() -> None:
     assert deferral["labels"] == ["COMPLETION_BY_DEFERRAL"]
 
 
-def test_cerberus_baseline_eval_emits_required_metrics_deterministically(tmp_path: Path) -> None:
+def test_claim_evidence_baseline_eval_emits_required_metrics_deterministically(tmp_path: Path) -> None:
     _write_split_corpus(tmp_path)
-    build_cerberus_eval_split(tmp_path)
+    build_claim_evidence_eval_split(tmp_path)
 
-    first = cerberus_baseline_eval(tmp_path)
+    first = claim_evidence_baseline_eval(tmp_path)
     metrics = first["metrics"]
     for key in (
         "verdict_accuracy",
@@ -97,12 +101,12 @@ def test_cerberus_baseline_eval_emits_required_metrics_deterministically(tmp_pat
         "heldout_case_count",
     ):
         assert key in metrics
-    assert set(CERBERUS_REQUIRED_LABELS).issubset(metrics["per_label_f1"])
+    assert set(CLAIM_EVIDENCE_REQUIRED_LABELS).issubset(metrics["per_label_f1"])
     assert first["heldout_case_count"] > 0
     assert metrics["json_validity_rate"] == 1.0
     assert first["split_seed"] == 424242
     assert (tmp_path / _RELEASE_DIR / "reports" / "baseline_results.md").exists()
 
     # Deterministic: same heldout + same rules => identical metrics.
-    second = cerberus_baseline_eval(tmp_path)
+    second = claim_evidence_baseline_eval(tmp_path)
     assert first["metrics"] == second["metrics"]

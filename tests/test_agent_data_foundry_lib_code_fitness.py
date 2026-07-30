@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -37,7 +41,7 @@ def test_godfile_is_block_and_report_shape(tmp_path):
     assert rep["code_fitness"]["schema_version"] == CODE_FITNESS_SCHEMA
     block = rep["findings"][0]
     assert block["severity"] == "BLOCK" and block["category"] == "structure"
-    # findings carry LogosOne curriculum fields
+    # findings carry PairedCurriculum curriculum fields
     assert set(("curriculum_family", "sign", "anchor", "repair_target")) <= set(block)
     assert block["curriculum_family"] == "module_structure"
 

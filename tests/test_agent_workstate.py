@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Work-state gates — the mechanical enforcement of the constitution.
 
 A 'complete' handoff (or a push) over a dirty or gate-red/stale tree must be

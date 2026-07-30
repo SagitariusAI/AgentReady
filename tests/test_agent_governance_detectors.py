@@ -1,4 +1,8 @@
-"""Unit tests for the governance-detectors Python port (PS->Python Phase 4). Fixture-based, no network."""
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public support for test agent governance detectors."""
 from __future__ import annotations
 
 import json
@@ -82,7 +86,7 @@ def test_unpushed_and_silent_with_upstream(tmp_path, monkeypatch):
     subprocess.run(["git", "init", "--bare", str(remote)], capture_output=True, check=True)
     work = tmp_path / "repo"
     subprocess.run(["git", "clone", str(remote), str(work)], capture_output=True, check=True)
-    cfg = ["-c", "user.email=t@t.local", "-c", "user.name=t"]
+    cfg = ["-c", "user.email=tester@example.invalid", "-c", "user.name=t"]
     (work / "a.py").write_text("x = 1\n", encoding="utf-8")
     subprocess.run(["git", *cfg, "add", "-A"], cwd=str(work), capture_output=True, check=False)
     subprocess.run(["git", *cfg, "commit", "-m", "base"], cwd=str(work), capture_output=True, check=False)

@@ -1,9 +1,8 @@
-"""Python unit tests for agent_coordination.paths (the ported claim/guard matching brain).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Distinct from tests/test_agent_coordination_paths.py, which drives the *PowerShell* library directly —
-that one remains the live parity check against the .ps1 until the lib is retired (Phase 7). This file
-asserts the Python port satisfies the same behavioral contract.
-"""
+"""Python unit tests for agent_coordination.paths (the ported claim/guard matching brain)."""
 from __future__ import annotations
 
 import subprocess
@@ -24,7 +23,7 @@ def repo(tmp_path, monkeypatch):
 
 
 def test_to_path_list_splits_comma_joined_string():
-    # the critical non-PowerShell-caller invariant (matches the PS-driving regression test)
+
     assert paths.to_path_list("a.py,b.py,c.py") == ["a.py", "b.py", "c.py"]
     assert paths.to_path_list("a.py, b.py ,  c.py") == ["a.py", "b.py", "c.py"]
     assert paths.to_path_list("a.py,,b.py,") == ["a.py", "b.py"]

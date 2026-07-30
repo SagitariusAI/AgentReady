@@ -1,20 +1,8 @@
-"""Agent local CI gate -- Python port of `bin/agent-ci-local.ps1` (PS->Python migration Phase 3, SHADOW).
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-PowerShell stays authoritative until the flip. This module reproduces the gate's durable logic:
-entrypoint **detection**, step **orchestration** (run + log + capture exit), failure **aggregation**, and
-the pass/fail **decision** that feeds the gate marker. Critical semantics preserved exactly:
-
-- gate `pass` requires >=1 step AND zero failures; "no steps ran" is gate **fail** but **exit 0**;
-- exit code is 1 iff any step failed;
-- the report-contract surface status is `fail` (failures) / `warn` (no steps) / `ok`;
-- the marker write delegates to `agent_workstate.py mark` (same `{status,kind,ref,at}` schema),
-- `AGENTREADY_CI_NO_MARK` suppresses the marker write,
-- a marker (or report-contract) failure NEVER changes the CI exit code.
-
-`--shadow` computes the Python verdict and writes a comparison vs the authoritative marker to
-`.agent-reports/ci/shadow/` WITHOUT writing the real marker or report contract (no wrapper flip yet).
-Parity proven in `smoke/agent_ci_local_shadow_smoke.py`.
-"""
+"""Public support for agent ci local."""
 from __future__ import annotations
 
 import argparse

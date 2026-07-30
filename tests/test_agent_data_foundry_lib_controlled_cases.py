@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,7 +33,7 @@ from agent_data_foundry_lib.controlled_cases import (
     vault_code_confusion_controlled_row,
 )
 from agent_data_foundry_lib.io_jsonl import append_jsonl
-from agent_data_foundry_lib.schemas import CERBERUS_SCHEMA_VERSION
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_SCHEMA_VERSION
 
 
 def test_family_registry_and_subtype_counts_unchanged():
@@ -78,7 +82,7 @@ def test_fingerprint_deterministic_and_family_scoped():
 
 def test_vault_row_block_verdict_and_provenance():
     row = vault_code_confusion_controlled_row("vcc-001", "vault_page_source_missing", "desc", "source_file")
-    assert row["schema_version"] == CERBERUS_SCHEMA_VERSION
+    assert row["schema_version"] == CLAIM_EVIDENCE_SCHEMA_VERSION
     assert row["incident_type"] == "VAULT_CODE_CONFUSION" and row["verdict"] == "BLOCK"
     assert row["provenance_type"] == "CONTROLLED_CASE"
     assert row["commercial_safety"]["release_eligible"] is True
@@ -124,7 +128,7 @@ def test_reexported_identity_from_package_and_central():
     import agent_data_foundry_lib as adfl
 
     # Generation primitives are owned by the leaf and re-exported from the package surface.
-    # After Phase L2 they are no longer re-imported into agent_data_foundry (only the
+
     # orchestration is), so assert their canonical package identity.
     assert adfl.vault_code_confusion_controlled_row is vault_code_confusion_controlled_row
     assert adfl.CONTROLLED_CASE_FAMILIES is CONTROLLED_CASE_FAMILIES

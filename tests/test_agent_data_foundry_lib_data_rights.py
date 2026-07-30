@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -22,7 +26,7 @@ def test_intended_uses_allowlist():
 def test_gate_passes_clean_rows_for_internal_use(tmp_path: Path):
     rows = [{"fingerprint": f"r{i}", "data_rights": {
         "grade": "A_FACTORY_OWNED", "export_allowed": True, "commercial_sale_allowed": True,
-        "requires_legal_review": False, "requires_founder_release": False,
+        "requires_legal_review": False, "requires_owner_release": False,
         "data_need": "internal_research", "intended_use_allowlist": list(DATASET_INTENDED_USES),
     }} for i in range(3)]
     ds = _dataset(tmp_path, rows)

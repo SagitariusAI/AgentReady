@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Pure stdlib helpers for the Factory Capture Runtime: timestamps, ids, hashing, JSON/JSONL io.
 
 No third-party dependencies; no imports from other factory_capture modules (this is a leaf)."""

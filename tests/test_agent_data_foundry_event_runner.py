@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -188,7 +192,7 @@ def test_event_runner_ingests_prior_governed_capture_event(tmp_path: Path) -> No
     )
     assert result["capture_harvest"]["summary"]["captured"] == 1
     assert result["capture_harvest"]["summary"]["research_command_rows"] == 1
-    assert result["internal_training_pipeline"]["dojo"]["rows_emitted"] == 1
+    assert result["internal_training_pipeline"]["dataset"]["rows_emitted"] == 1
 
 
 def test_custom_coordination_root_controls_harvest_and_build_detection(tmp_path: Path) -> None:

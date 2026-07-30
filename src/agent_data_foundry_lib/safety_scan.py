@@ -1,22 +1,8 @@
-"""Source-signal safety / redaction scanning for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase C1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the source-signal safety-scan / redaction leaf moved verbatim out of
-agent_data_foundry.py with **no behavior change**. Pure leaf — depends only on the
-stdlib (`json`, `re`) and `typing`.
-
-The safety contract is unchanged and deliberately conservative:
-- Severe secret material (private keys, credentialed URLs, secret assignments, AWS /
-  GitHub / Slack / Google tokens) -> QUARANTINE; the caller downgrades the row's
-  data_rights to F_QUARANTINE and excludes it from the Dojo / any export.
-- Username / email / absolute user path -> REDACTED in place (the row is kept).
-- An `.env` *path* reference is a pointer, not the secret -> flagged, field unchanged.
-- Diff text is code: a real-looking token quarantines, but a clearly-fake token in a
-  test/fixture path is REDACTED-not-quarantined so the Factory can still learn from
-  its own security-test diffs. The fake-token carveout is STRICT (a real-looking
-  token with no fake marker still quarantines, even in a test file).
-- Findings never carry the raw matched secret — only detector + severity.
-"""
+"""Source-signal safety / redaction scanning for the Agent Data Foundry."""
 from __future__ import annotations
 
 import json
@@ -34,7 +20,7 @@ SOURCE_SIGNAL_SCAN_FIELDS = (
 
 # Severe detectors: a hit means real secret material -> the record is quarantined,
 # never exported. The matched span is masked in the redacted copy as a defensive
-# second layer (quarantined rows are excluded from the Dojo regardless). High
+# second layer (quarantined rows are excluded from the Dataset regardless). High
 # precision on purpose: a generic high-entropy detector is deliberately omitted to
 # avoid quarantining legitimate hashes/fingerprints (a later, tunable DLP slice).
 SOURCE_SIGNAL_SEVERE_DETECTORS = [

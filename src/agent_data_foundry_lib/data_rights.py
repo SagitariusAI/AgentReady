@@ -1,15 +1,19 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Data-rights eligibility gate for the Agent Data Foundry.
 
 The dataset-level rights gate: ``data_rights_gate`` validates whether a dataset (the internal
-Factory Dojo by default) is eligible for a declared intended use, tallying per-grade counts,
-export / commercial-sale / quarantine / legal-review / founder-release rows, and per-row
+Curated Dataset by default) is eligible for a declared intended use, tallying per-grade counts,
+export / commercial-sale / quarantine / legal-review / owner-release rows, and per-row
 pass/fail against the rights policy, then writes the gate report next to the dataset. It is a
-pure validator — it never rebuilds a dataset, touches sealed Cerberus v0.1, writes under
+pure validator — it never rebuilds a dataset, touches sealed ClaimEvidence v0.1, writes under
 ``40_release_ready``, or infers clearance. ``DATASET_INTENDED_USES`` is the recognized intended-use
 allowlist, consumed only by this gate.
 
-Clean leaf: composes the row-level rights policy (``rights.data_rights_gate_row``), the Dojo path
-(``dojo.inhouse_dojo_root``), ``io_jsonl``, and the ``paths`` home — no back-import to
+Clean leaf: composes the row-level rights policy (``rights.data_rights_gate_row``), the Dataset path
+(``dataset.curated_dataset_root``), ``io_jsonl``, and the ``paths`` home — no back-import to
 agent_data_foundry. The gate report schema string, status logic, per-row reasons, and tallies are
 preserved byte-for-byte from the pre-split module.
 """
@@ -18,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agent_data_foundry_lib.dojo import inhouse_dojo_root
+from agent_data_foundry_lib.curated_dataset import curated_dataset_root
 from agent_data_foundry_lib.io_jsonl import as_dict, now_utc, read_jsonl, rel, write_json
 from agent_data_foundry_lib.paths import AGENTREADY_HOME
 from agent_data_foundry_lib.rights import data_rights_gate_row
@@ -38,11 +42,11 @@ def data_rights_gate(
     intended_use: str = "internal_research",
 ) -> dict[str, Any]:
     """Validate whether a dataset is eligible for a declared intended use. Pure
-    validator: it never rebuilds a dataset, touches Cerberus v0.1, writes to
+    validator: it never rebuilds a dataset, touches ClaimEvidence v0.1, writes to
     40_release_ready, or infers clearance."""
     root = Path(root)
     if dataset_path is None:
-        dataset_path = inhouse_dojo_root(root) / "factory_dojo_internal.jsonl"
+        dataset_path = curated_dataset_root(root) / "curated_dataset_internal.jsonl"
     dataset_path = Path(dataset_path)
     rows = read_jsonl(dataset_path)
 
@@ -54,7 +58,7 @@ def data_rights_gate(
     commercial_sale_rows = 0
     quarantine_rows = 0
     legal_review_required_rows = 0
-    founder_release_required_rows = 0
+    owner_release_required_rows = 0
 
     for index, row in enumerate(rows, start=1):
         rights = as_dict(row.get("data_rights"))
@@ -68,8 +72,8 @@ def data_rights_gate(
             quarantine_rows += 1
         if rights.get("requires_legal_review"):
             legal_review_required_rows += 1
-        if rights.get("requires_founder_release"):
-            founder_release_required_rows += 1
+        if rights.get("requires_owner_release"):
+            owner_release_required_rows += 1
         passed, reason = data_rights_gate_row(row, intended_use)
         if passed:
             rows_passed += 1
@@ -105,7 +109,7 @@ def data_rights_gate(
         "commercial_sale_rows": commercial_sale_rows,
         "quarantine_rows": quarantine_rows,
         "legal_review_required_rows": legal_review_required_rows,
-        "founder_release_required_rows": founder_release_required_rows,
+        "owner_release_required_rows": owner_release_required_rows,
     }
     report_path = dataset_path.parent / "data_rights_gate_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)

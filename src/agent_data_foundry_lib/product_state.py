@@ -1,22 +1,8 @@
-"""Product State Scanner + Product Reality Brief for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase F1 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the deterministic, dry-run/report-only product-state scanner + reality-brief subsystem
-moved verbatim out of agent_data_foundry.py with **no behavior change**. A near-leaf:
-it imports only the sibling lib modules (io_jsonl for JSON/report IO, safety_scan for
-the brief-post secret gate) and the stdlib — never back from agent_data_foundry, so
-there is no import cycle. The component registry references other subsystems by *string*
-locators, not imports, so moving it pulls in nothing.
-
-The cardinal rule is preserved exactly: a well-defined document is not proof of
-implementation. Docs alone never reach BUILT; code+gate-green lifts to BUILT;
-code+test+gate lifts to TESTED; sealed artifacts stay SEALED; RELEASE_CANDIDATE /
-PRODUCTION_READY / sell-ready are NEVER inferred (they need human/founder gates). The
-scan never upgrades a status the evidence does not support, never writes under
-40_release_ready, and makes no release/commercial claim. The brief post is
-connector-agnostic: CHAT_UNAVAILABLE never fakes POSTED, POSTED needs a confirmed
-message_id, a severe-secret brief is blocked, and posting never mutates product state.
-"""
+"""Product State Scanner + Product Reality Brief for the Agent Data Foundry."""
 from __future__ import annotations
 
 import re
@@ -35,7 +21,7 @@ _PS_STATUSES = (
 )
 _PS_EVIDENCE_TAGS = (
     "DOC_DEFINED_ONLY", "CODE_EXISTS", "TEST_EXISTS", "GATE_GREEN", "PACKAGED",
-    "RUNTIME_SMOKE_PASSED", "USER_WORKFLOW_VERIFIED", "FOUNDER_ACCEPTED",
+    "RUNTIME_SMOKE_PASSED", "USER_WORKFLOW_VERIFIED", "OWNER_ACCEPTED",
     "COMMERCIAL_CLEARANCE_PENDING",
 )
 _PS_COMMERCIAL = ("pending", "cleared", "not_applicable")
@@ -48,17 +34,17 @@ def product_state_root(root: Path | str) -> Path:
 # Declared components. The scanner DISCOVERS evidence for each at scan time; it
 # never asserts a status the evidence does not support.
 _PRODUCT_STATE_COMPONENTS: list[dict[str, Any]] = [
-    {"component_id": "data_foundry.cerberus_sentinel.exporter", "component_name": "Cerberus Sentinel training exporter", "subsystem": "data_foundry", "kind": "code",
-     "code": [("src/agent_data_foundry_lib/training_export.py", "export_cerberus_sentinel_training")], "tests": ["test_export_cerberus_sentinel_training", "test_sft_format_strict_sentinel_json"],
-     "docs": ["docs/LOCAL_MODEL_IMPROVEMENT_CYCLE_DOCTRINE.md"], "commit_grep": "Dojo Training Exporter"},
-    {"component_id": "data_foundry.cerberus_sentinel.eval_gate", "component_name": "Cerberus Sentinel eval + promotion gate", "subsystem": "data_foundry", "kind": "code",
-     "code": [("src/agent_data_foundry_lib/eval_gate.py", "cerberus_sentinel_eval_and_gate")], "tests": ["test_eval_gate_perfect_predictions_promoted", "test_eval_gate_baseline_required"],
+    {"component_id": "data_foundry.claim_evidence_sentinel.exporter", "component_name": "ClaimEvidence Sentinel training exporter", "subsystem": "data_foundry", "kind": "code",
+     "code": [("src/agent_data_foundry_lib/training_export.py", "export_claim_evidence_sentinel_training")], "tests": ["test_export_claim_evidence_sentinel_training", "test_sft_format_strict_sentinel_json"],
+     "docs": ["docs/LOCAL_MODEL_IMPROVEMENT_CYCLE_DOCTRINE.md"], "commit_grep": "Dataset Training Exporter"},
+    {"component_id": "data_foundry.claim_evidence_sentinel.eval_gate", "component_name": "ClaimEvidence Sentinel eval + promotion gate", "subsystem": "data_foundry", "kind": "code",
+     "code": [("src/agent_data_foundry_lib/eval_gate.py", "claim_evidence_sentinel_eval_and_gate")], "tests": ["test_eval_gate_perfect_predictions_promoted", "test_eval_gate_baseline_required"],
      "docs": ["docs/LOCAL_MODEL_IMPROVEMENT_CYCLE_DOCTRINE.md"], "commit_grep": "Eval + Promotion Gate"},
     {"component_id": "data_foundry.creator_provenance", "component_name": "Creator Provenance Envelope", "subsystem": "data_foundry", "kind": "code",
      "code": [("src/agent_data_foundry_lib/provenance.py", "build_creator_provenance_envelope")], "tests": ["test_provenance_present_on_every_exported_row"],
      "docs": ["docs/LOCAL_MODEL_IMPROVEMENT_CYCLE_DOCTRINE.md"], "commit_grep": "Creator Provenance Envelope"},
-    {"component_id": "data_foundry.cerberus_sentinel.baseline_eval", "component_name": "Cerberus Sentinel baseline eval", "subsystem": "data_foundry", "kind": "code",
-     "code": [("src/agent_data_foundry_lib/eval_gate.py", "cerberus_sentinel_baseline_eval")], "tests": ["test_baseline_eval_metrics_and_outputs"],
+    {"component_id": "data_foundry.claim_evidence_sentinel.baseline_eval", "component_name": "ClaimEvidence Sentinel baseline eval", "subsystem": "data_foundry", "kind": "code",
+     "code": [("src/agent_data_foundry_lib/eval_gate.py", "claim_evidence_sentinel_baseline_eval")], "tests": ["test_baseline_eval_metrics_and_outputs"],
      "docs": ["docs/LOCAL_MODEL_IMPROVEMENT_CYCLE_DOCTRINE.md"]},
     {"component_id": "product_state.scanner", "component_name": "Product State Scanner + Reality Brief Runner", "subsystem": "product_delivery", "kind": "code",
      "code": [("src/agent_data_foundry_lib/product_state.py", "product_state_scan")], "tests": ["test_product_state_scan_outputs_and_schema", "test_classify_product_status_bar"],
@@ -130,7 +116,7 @@ def _ps_git_commits(root: Path, grep: str | None, limit: int = 3) -> list[str]:
 def _classify_product_status(tags: set[str], kind: str) -> str:
     """The evidence bar. A well-defined document is not proof of implementation:
     docs alone never reach BUILT. PRODUCTION_READY / RELEASE_CANDIDATE are never
-    inferred by the scanner (they need human/founder gates)."""
+    inferred by the scanner (they need human/owner gates)."""
     if "SEALED" in tags:
         return "SEALED"
     if {"CODE_EXISTS", "TEST_EXISTS", "GATE_GREEN"} <= tags:
@@ -198,8 +184,8 @@ def _scan_product_component(root: Path, spec: dict[str, Any], gate_green: bool) 
         not_yet.append("not packaged")
     if "RUNTIME_SMOKE_PASSED" not in tags:
         not_yet.append("no runtime smoke")
-    if "FOUNDER_ACCEPTED" not in tags:
-        not_yet.append("no explicit founder acceptance")
+    if "OWNER_ACCEPTED" not in tags:
+        not_yet.append("no explicit owner acceptance")
     related_receipts: list[str] = []
     if "GATE_GREEN" in tags:
         related_receipts.append(".agentready/gate_status.json")
@@ -217,7 +203,7 @@ def _scan_product_component(root: Path, spec: dict[str, Any], gate_green: bool) 
         "related_commits": _ps_git_commits(root, spec.get("commit_grep")),
         "related_tests": related_tests,
         "related_receipts": related_receipts,
-        "founder_acceptance": None,
+        "owner_acceptance": None,
         "commercial_clearance": commercial if commercial in _PS_COMMERCIAL else "not_applicable",
         "last_verified_at": now_utc(),
         "verifier": "product_state_scanner",
@@ -234,7 +220,7 @@ def _validate_ledger_draft(draft: dict[str, Any]) -> tuple[bool, list[str]]:
         errors.append(f"missing top keys: {required_top - set(draft)}")
     comp_keys = {"component_id", "component_name", "status", "evidence_tags", "evidence", "blocked_by",
                  "not_yet", "related_docs", "related_commits", "related_tests", "related_receipts",
-                 "founder_acceptance", "commercial_clearance", "last_verified_at", "verifier"}
+                 "owner_acceptance", "commercial_clearance", "last_verified_at", "verifier"}
     for c in draft.get("components", []):
         if set(c) != comp_keys:
             errors.append(f"{c.get('component_id')}: key set mismatch")
@@ -265,7 +251,7 @@ def _product_reality_brief_md(draft: dict[str, Any]) -> str:
         "",
         "> Generated by the **Product State Scanner** (dry-run, evidence-derived). "
         "A well-defined document is not proof of implementation. "
-        "**Sell-ready / commercial-ready is a separate founder/legal/business gate and is NOT asserted here.**",
+        "**Sell-ready / commercial-ready is a separate owner/legal/business gate and is NOT asserted here.**",
         "",
         f"- **Product / subsystem:** {draft['product']} / (all subsystems)",
         f"- **Generated at:** {draft['updated_at']}",
@@ -297,7 +283,7 @@ def _product_reality_brief_md(draft: dict[str, Any]) -> str:
     lines += ["", "## Recommended verification targets before frontier model work",
               "- Run the focused tests and confirm the gate marker is green before claiming any `BUILT`/`TESTED` status.",
               "- For any `DEFINED`/`PLANNED` target, treat it as not-yet-built; gather code + receipt evidence first.",
-              "- Never claim `RELEASE_CANDIDATE`/`PRODUCTION_READY`/sell-ready without the corresponding gates and founder approval."]
+              "- Never claim `RELEASE_CANDIDATE`/`PRODUCTION_READY`/sell-ready without the corresponding gates and owner approval."]
     return "\n".join(lines) + "\n"
 
 

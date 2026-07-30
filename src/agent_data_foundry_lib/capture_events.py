@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 """Canonical Factory Capture event intake for the Agent Data Foundry."""
 from __future__ import annotations
 

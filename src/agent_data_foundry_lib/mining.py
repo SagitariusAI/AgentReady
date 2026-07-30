@@ -1,10 +1,14 @@
-"""Cerberus label-mining cluster for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""ClaimEvidence label-mining cluster for the Agent Data Foundry.
 
 Mines natural Gold rows from real coordination receipts: the per-label candidate detectors
 (`receipt_is_*_candidate`, `receipt_claims_promotion`, `unsupported_promotion_missing_evidence`
 and their text/path helpers), the dedup'd Gold-append writer (`append_mined_gold_rows`), the five
 `mine_*` CLI actions (SUPPORTED_CLAIM / UNSUPPORTED_PROMOTION x2 / VAULT_CODE_CONFUSION /
-MISDIRECTED_VERIFICATION), and the silver→gold schema upgrader (`upgrade_cerberus_gold_schema`).
+MISDIRECTED_VERIFICATION), and the silver→gold schema upgrader (`upgrade_claim_evidence_gold_schema`).
 
 Clean leaf: composes the receipt primitives (`receipts`), the adjudication row builders
 (`receipt_gold_row` / `gold_coordination_row` / fingerprint+source-id + provenance), the Gold
@@ -37,7 +41,7 @@ from agent_data_foundry_lib.io_jsonl import (
 )
 from agent_data_foundry_lib.paths import AGENTREADY_HOME, report_data_foundry_path
 from agent_data_foundry_lib.receipts import PROMOTABLE_POLICIES, discover_receipts
-from agent_data_foundry_lib.schemas import CERBERUS_SCHEMA_VERSION
+from agent_data_foundry_lib.schemas import CLAIM_EVIDENCE_SCHEMA_VERSION
 
 
 def receipt_is_supported_claim_candidate(receipt: dict[str, Any]) -> bool:
@@ -162,7 +166,7 @@ def append_mined_gold_rows(root: Path, label: str, rows: list[dict[str, Any]], r
     new_rows = [row for row in rows if row.get("fingerprint") not in existing]
     append_jsonl_rows(gold_path, new_rows)
     result = {
-        "schema_version": "agentready.data_foundry.cerberus_label_mining.v1",
+        "schema_version": "agentready.data_foundry.claim_evidence_label_mining.v1",
         "generated_at": now_utc(),
         "label": label,
         "candidates": len(rows),
@@ -190,7 +194,7 @@ def mine_supported_claims(root: Path | str = AGENTREADY_HOME, coordination_root:
                 "Receipt passed quality gates, included evidence, and had no promotion blockers.",
             )
         )
-    result = append_mined_gold_rows(root, "SUPPORTED_CLAIM", candidates, "cerberus-mine-supported-claims-latest.json")
+    result = append_mined_gold_rows(root, "SUPPORTED_CLAIM", candidates, "claim_evidence-mine-supported-claims-latest.json")
     result["skipped"] = skipped + result["skipped_duplicates"]
     return result
 
@@ -213,7 +217,7 @@ def mine_unsupported_promotions(root: Path | str = AGENTREADY_HOME, coordination
                 missing,
             )
         )
-    result = append_mined_gold_rows(root, "UNSUPPORTED_PROMOTION", candidates, "cerberus-mine-unsupported-promotions-latest.json")
+    result = append_mined_gold_rows(root, "UNSUPPORTED_PROMOTION", candidates, "claim_evidence-mine-unsupported-promotions-latest.json")
     result["skipped"] = skipped + result["skipped_duplicates"]
     return result
 
@@ -236,7 +240,7 @@ def mine_unsupported_promotions_v2(root: Path | str = AGENTREADY_HOME, coordinat
                 missing,
             )
         )
-    result = append_mined_gold_rows(root, "UNSUPPORTED_PROMOTION", candidates, "cerberus-mine-unsupported-promotions-v2-latest.json")
+    result = append_mined_gold_rows(root, "UNSUPPORTED_PROMOTION", candidates, "claim_evidence-mine-unsupported-promotions-v2-latest.json")
     result["skipped"] = skipped + result["skipped_duplicates"]
     return result
 
@@ -258,7 +262,7 @@ def mine_vault_code_confusion(root: Path | str = AGENTREADY_HOME, coordination_r
                 ["source_or_test_runtime_evidence"],
             )
         )
-    result = append_mined_gold_rows(root, "VAULT_CODE_CONFUSION", candidates, "cerberus-mine-vault-code-confusion-latest.json")
+    result = append_mined_gold_rows(root, "VAULT_CODE_CONFUSION", candidates, "claim_evidence-mine-vault-code-confusion-latest.json")
     result["skipped"] = skipped + result["skipped_duplicates"]
     return result
 
@@ -280,17 +284,17 @@ def mine_misdirected_verification(root: Path | str = AGENTREADY_HOME, coordinati
                 ["target_repo_or_artifact_mismatch"],
             )
         )
-    result = append_mined_gold_rows(root, "MISDIRECTED_VERIFICATION", candidates, "cerberus-mine-misdirected-verification-latest.json")
+    result = append_mined_gold_rows(root, "MISDIRECTED_VERIFICATION", candidates, "claim_evidence-mine-misdirected-verification-latest.json")
     result["skipped"] = skipped + result["skipped_duplicates"]
     return result
 
 
-def upgrade_cerberus_gold_schema(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
+def upgrade_claim_evidence_gold_schema(root: Path | str = AGENTREADY_HOME) -> dict[str, Any]:
     root = Path(root)
     harvest_root = root / "data" / "training-library" / "10_working" / "coordination-harvest"
     silver_path = harvest_root / "10_silver" / "incidents.jsonl"
     gold_path = harvest_root / "20_gold" / "product_incidents.jsonl"
-    report_path = root / "reports" / "data-foundry" / "cerberus-gold-schema-upgrade-latest.json"
+    report_path = root / "reports" / "data-foundry" / "claim_evidence-gold-schema-upgrade-latest.json"
     existing_gold_rows = read_jsonl(gold_path)
     silver_rows = read_jsonl(silver_path)
     new_gold_rows: list[dict[str, Any]] = []
@@ -298,7 +302,7 @@ def upgrade_cerberus_gold_schema(root: Path | str = AGENTREADY_HOME) -> dict[str
     skipped: list[dict[str, Any]] = []
     preserved = 0
     for row in existing_gold_rows:
-        if row.get("schema_version") != CERBERUS_SCHEMA_VERSION:
+        if row.get("schema_version") != CLAIM_EVIDENCE_SCHEMA_VERSION:
             continue
         normalized = ensure_natural_provenance_fields(row)
         fingerprint = str(normalized.get("fingerprint") or "")
@@ -321,14 +325,14 @@ def upgrade_cerberus_gold_schema(root: Path | str = AGENTREADY_HOME) -> dict[str
         seen_fingerprints.add(fingerprint)
     append_jsonl(gold_path, new_gold_rows)
     result = {
-        "schema_version": "agentready.data_foundry.cerberus_gold_upgrade.v1",
+        "schema_version": "agentready.data_foundry.claim_evidence_gold_upgrade.v1",
         "generated_at": now_utc(),
         "source_silver_path": rel(root, silver_path) if silver_path.exists() else str(silver_path),
         "target_gold_path": rel(root, gold_path),
         "rewritten": len(new_gold_rows),
         "preserved_current_schema_rows": preserved,
         "skipped": skipped,
-        "target_schema_version": CERBERUS_SCHEMA_VERSION,
+        "target_schema_version": CLAIM_EVIDENCE_SCHEMA_VERSION,
     }
     write_json(report_path, result)
     return result

@@ -1,11 +1,8 @@
-"""Small self-contained helpers for the coordination foundation.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-The coordination engine depends ONLY on `agent_runtime_paths` + stdlib (a governance foundation must
-not be load-bearing on a runtime like factory_capture, even though factory_capture has equivalent
-helpers). These mirror the PowerShell `agent-coordination-lib.ps1` helpers byte-faithfully:
-`now_stamp` == `(Get-Date).ToString('s')`, `task_stamp` == `Get-Date -Format 'yyyyMMdd-HHmmss'`,
-`slug` == `ConvertTo-AgentSlug`.
-"""
+"""Small self-contained helpers for the coordination foundation."""
 from __future__ import annotations
 
 import json
@@ -18,7 +15,7 @@ _SLUG_NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
 def now_stamp() -> str:
-    """Local ISO second-precision, no offset — matches PowerShell `(Get-Date).ToString('s')`."""
+    """Return a local ISO timestamp with second precision and no offset."""
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 

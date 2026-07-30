@@ -1,16 +1,8 @@
-"""Creator-provenance envelope + summary helpers for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
 
-Phase B2 of the module split (docs/refactors/AGENT_DATA_FOUNDRY_MODULE_SPLIT_PLAN.md):
-the Creator Provenance Envelope v0.1 helpers moved verbatim out of agent_data_foundry.py
-with **no behavior change** -- identical creator_provenance / provenance_chain /
-review_provenance per-row output, identical provenance_manifest distributions and
-counts, identical source_commit handling. model_name is NEVER inferred from an agent
-name; founder/human approval is NEVER fabricated; unknown stays explicit. Internal-only.
-
-`_current_git_commit` deliberately stayed in agent_data_foundry.py (shared by the
-exporter and the eval gate); `build_creator_provenance_envelope` takes `source_commit`
-as a parameter, so this module needs nothing from the central module.
-"""
+"""Creator-provenance envelope + summary helpers for the Agent Data Foundry."""
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +16,7 @@ from agent_data_foundry_lib.io_jsonl import as_dict
 # stays an EXPLICIT null / "unknown" (never silently omitted); model_name is
 # NEVER inferred from an agent name; human identity defaults to an internal
 # pseudonymous role label; no fabricated model names/versions, reviewers, or
-# approvals. Internal-only everywhere it appears.
+# approvals. Restricted-use everywhere it appears.
 
 CREATOR_PROVENANCE_SCHEMA = "sf.creator_provenance.v0.1"
 REVIEW_PROVENANCE_SCHEMA = "sf.review_provenance.v0.1"
@@ -52,16 +44,16 @@ def _prov_stage(stage: str, **kw: Any) -> dict[str, Any]:
 
 
 def _human_correction_signal(row: dict[str, Any]) -> dict[str, Any]:
-    """Explicit human/founder correction from the captured human_correction_lineage
+    """Explicit human/owner correction from the captured human_correction_lineage
     block OR raw record fields. Never fabricated: absent fields mean no human acted,
     so the human-specific signal honestly stays absent."""
     hcl = as_dict(row.get("human_correction_lineage"))
-    founder_override = hcl.get("founder_override_reason") or row.get("founder_override_reason")
+    owner_override = hcl.get("owner_override_reason") or row.get("owner_override_reason")
     human_correction = hcl.get("human_correction") or row.get("human_correction")
     source = str(hcl.get("correction_source") or "")
     review_decision = hcl.get("review_decision") or row.get("review_decision") or (row.get("gold_output") or {}).get("verdict")
-    if founder_override:
-        kind = "founder"
+    if owner_override:
+        kind = "owner"
     elif human_correction or source == "human_review":
         kind = "human"
     elif source == "machine_adjudication" or review_decision:
@@ -70,7 +62,7 @@ def _human_correction_signal(row: dict[str, Any]) -> dict[str, Any]:
         kind = "none"
     return {
         "kind": kind,
-        "founder_override": str(founder_override) if founder_override else None,
+        "owner_override": str(owner_override) if owner_override else None,
         "review_decision": str(review_decision) if review_decision else None,
     }
 
@@ -108,7 +100,7 @@ def _model_signal(row: dict[str, Any]) -> dict[str, Any]:
 def build_creator_provenance_envelope(row: dict[str, Any], source_commit: str | None) -> dict[str, Any]:
     """Unified per-row provenance: a singular creator_provenance (the row's terminal
     producer -- the deterministic exporter), an ordered provenance_chain (origin ->
-    correction -> review -> export), and review_provenance. All internal-only."""
+    correction -> review -> export), and review_provenance. All restricted-use."""
     receipt_id = str(row.get("source_id_hash") or row.get("fingerprint") or "") or None
     is_controlled = str(row.get("provenance_type") or "") == "CONTROLLED_CASE"
     hc = _human_correction_signal(row)
@@ -118,8 +110,8 @@ def build_creator_provenance_envelope(row: dict[str, Any], source_commit: str | 
     # origin stage: human-authored controlled case, or model/unknown-generated receipt
     if is_controlled:
         chain.append(_prov_stage(
-            "authored", creator_type="human", creator_display="Founder", creator_role="author",
-            authority_level="founder", contribution_type="authored",
+            "authored", creator_type="human", creator_display="Owner", creator_role="author",
+            authority_level="owner", contribution_type="authored",
             privacy_scope="internal_pseudonymous", source_receipt_id=receipt_id,
             confidence="inferred",  # inferred from provenance_type=CONTROLLED_CASE, no explicit per-row author field
         ))
@@ -137,11 +129,11 @@ def build_creator_provenance_envelope(row: dict[str, Any], source_commit: str | 
         ))
 
     # correction / review stage -- only when a human explicitly acted, else machine
-    if hc["kind"] == "founder":
+    if hc["kind"] == "owner":
         chain.append(_prov_stage(
-            "corrected", creator_type="human", creator_display="Founder", creator_role="reviewer",
-            authority_level="founder", contribution_type="corrected",
-            privacy_scope="internal_pseudonymous", notes=hc["founder_override"], confidence="explicit",
+            "corrected", creator_type="human", creator_display="Owner", creator_role="reviewer",
+            authority_level="owner", contribution_type="corrected",
+            privacy_scope="internal_pseudonymous", notes=hc["owner_override"], confidence="explicit",
         ))
     elif hc["kind"] == "human":
         chain.append(_prov_stage(
@@ -187,10 +179,10 @@ def build_creator_provenance_envelope(row: dict[str, Any], source_commit: str | 
         "notes": None,
     }
 
-    if hc["kind"] == "founder":
-        review_status = "founder_approved"
-        reviewers = [{"reviewer_type": "human", "reviewer_display": "Founder", "authority_level": "founder",
-                      "decision": hc["founder_override"] or hc["review_decision"], "confidence": "explicit"}]
+    if hc["kind"] == "owner":
+        review_status = "owner_approved"
+        reviewers = [{"reviewer_type": "human", "reviewer_display": "Owner", "authority_level": "owner",
+                      "decision": hc["owner_override"] or hc["review_decision"], "confidence": "explicit"}]
     elif hc["kind"] == "human":
         review_status = "human_reviewed"
         reviewers = [{"reviewer_type": "human", "reviewer_display": "Internal reviewer", "authority_level": "reviewer",
@@ -229,9 +221,9 @@ def summarize_provenance(envelopes: list[dict[str, Any]]) -> dict[str, Any]:
     model_version_dist: dict[str, int] = {}
     source_commit_dist: dict[str, int] = {}
     human_rows = model_rows = factory_rows = 0
-    founder_authored = founder_corrected = human_reviewed = 0
+    owner_authored = owner_corrected = human_reviewed = 0
     machine_generated = factory_generated = deterministic_exported = unreviewed = 0
-    founder_approved_gold = rejected = unknown_creator = unknown_model_version = 0
+    owner_approved_gold = rejected = unknown_creator = unknown_model_version = 0
 
     def bump(dist: dict[str, int], value: Any) -> None:
         key = "null" if value is None else str(value)
@@ -256,8 +248,8 @@ def summarize_provenance(envelopes: list[dict[str, Any]]) -> dict[str, Any]:
         bump(source_commit_dist, cp.get("source_commit"))
         origin = chain[0] if chain else {}
         origin_type = str(origin.get("creator_type"))
-        if origin_type == "human" and str(origin.get("authority_level")) == "founder":
-            founder_authored += 1
+        if origin_type == "human" and str(origin.get("authority_level")) == "owner":
+            owner_authored += 1
         if origin_type in ("frontier_llm", "local_llm"):
             machine_generated += 1
         if str(origin.get("stage")) == "generated" and origin_type == "deterministic_factory":
@@ -269,14 +261,14 @@ def summarize_provenance(envelopes: list[dict[str, Any]]) -> dict[str, Any]:
         if (str(origin.get("stage")) == "generated" and origin.get("model_version") is None
                 and origin_type in ("frontier_llm", "local_llm", "unknown")):
             unknown_model_version += 1
-        if any(s.get("stage") == "corrected" and str(s.get("authority_level")) == "founder" for s in chain):
-            founder_corrected += 1
+        if any(s.get("stage") == "corrected" and str(s.get("authority_level")) == "owner" for s in chain):
+            owner_corrected += 1
         if any(s.get("stage") == "exported" and str(s.get("creator_type")) == "deterministic_factory" for s in chain):
             deterministic_exported += 1
         status = str(review.get("review_status") or "unreviewed")
         bump(review_status_dist, status)
-        founder_approved_gold += int(status == "founder_approved")
-        human_reviewed += int(status in ("human_reviewed", "founder_approved"))
+        owner_approved_gold += int(status == "owner_approved")
+        human_reviewed += int(status in ("human_reviewed", "owner_approved"))
         unreviewed += int(status == "unreviewed")
         rejected += int(status == "rejected")
 
@@ -293,14 +285,14 @@ def summarize_provenance(envelopes: list[dict[str, Any]]) -> dict[str, Any]:
         "model_version_distribution": model_version_dist,
         "source_commit_distribution": source_commit_dist,
         "human_vs_model_vs_factory": {"human": human_rows, "model": model_rows, "deterministic_factory": factory_rows},
-        "founder_authored_count": founder_authored,
-        "founder_corrected_count": founder_corrected,
+        "owner_authored_count": owner_authored,
+        "owner_corrected_count": owner_corrected,
         "human_reviewed_count": human_reviewed,
         "machine_generated_count": machine_generated,
         "factory_generated_count": factory_generated,
         "deterministic_exported_count": deterministic_exported,
         "unreviewed_candidate_count": unreviewed,
-        "founder_approved_training_gold_count": founder_approved_gold,
+        "owner_approved_training_gold_count": owner_approved_gold,
         "rejected_candidate_count": rejected,
         "unknown_creator_count": unknown_creator,
         "unknown_model_version_count": unknown_model_version,

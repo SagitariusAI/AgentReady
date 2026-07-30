@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -27,24 +31,24 @@ def _write_export(path, conversations):
     path.write_text(json.dumps({"conversations": conversations}), encoding="utf-8")
 
 
-def test_import_emits_all_files_internal_only(tmp_path):
+def test_import_emits_all_files_restricted_use(tmp_path):
     src = tmp_path / "conversations.json"
-    _write_export(src, [_conv("AgentReady planning", ("user", "let us design Cerberus"), ("assistant", "ok"))])
+    _write_export(src, [_conv("AgentReady planning", ("user", "let us design ClaimEvidence"), ("assistant", "ok"))])
     result = import_historical_chats(tmp_path, source_path=src)
     out = historical_chats_root(tmp_path)
     for name in (
         "historical_chat_sessions.jsonl", "historical_chat_segments.jsonl",
-        "historical_chat_dojo_records.jsonl", "historical_chat_manifest.json",
+        "historical_chat_dataset_records.jsonl", "historical_chat_manifest.json",
         "historical_chat_rights_report.json", "historical_chat_signal_coverage_report.json",
     ):
         assert (out / name).exists(), name
-    assert result["status"] == "INHOUSE_READY"
+    assert result["status"] == "CURATED_READY"
     assert result["session_count"] == 1 and result["segment_count"] == 2
-    assert result["all_internal_only"] is True
+    assert result["all_restricted_use"] is True
     assert result["external_release_allowed"] is False and result["commercial_sale_allowed"] is False
-    # every session is graded internal-only
+    # every session is graded restricted-use
     rights = json.loads((out / "historical_chat_rights_report.json").read_text(encoding="utf-8"))
-    assert rights["all_internal_only"] is True and rights["export_allowed_rows"] == 0
+    assert rights["all_restricted_use"] is True and rights["export_allowed_rows"] == 0
 
 
 def test_segment_readback_matches_emitted_rows(tmp_path):

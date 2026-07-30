@@ -1,11 +1,15 @@
-"""Coordination-harvest + BDXL receipt-export pipeline for the Agent Data Foundry.
+# Copyright (c) 2026 Sagittarius AI
+# Project Owner: Alex Burca
+# SPDX-License-Identifier: Apache-2.0
+
+"""Coordination-harvest + ARCHIVE receipt-export pipeline for the Agent Data Foundry.
 
 The receipt-curation half of the foundry: ``harvest_coordination_records`` walks the coordination
 receipts, derives the silver/gold coordination rows + capture signals, and writes the harvest
 shelf (manifest + checksums + report); ``build_data_foundry`` is the top-level build that exports
-the BDXL training folders from eligible receipts (``export_row`` + ``metadata`` + ``evidence_text``
+the ARCHIVE training folders from eligible receipts (``export_row`` + ``metadata`` + ``evidence_text``
 + ``rejection_reasons``) and writes the manifest / plan / report. The harvest schema + eligible
-statuses, the BDXL payload budget, and the export-folder map live here.
+statuses, the ARCHIVE payload budget, and the export-folder map live here.
 
 Clean leaf: composes the adjudication row builders (``gold_coordination_row`` /
 ``silver_coordination_row`` / fingerprint + source-id + ``safe_segment``), the receipt primitives
@@ -43,7 +47,7 @@ from agent_data_foundry_lib.paths import AGENTREADY_HOME, default_release_id, ru
 from agent_data_foundry_lib.receipts import PROMOTABLE_POLICIES, discover_receipts
 from agent_workflow_lanes import classify_workflow_lane
 
-BDXL_PAYLOAD_BUDGET_BYTES = 95_000_000_000
+ARCHIVE_PAYLOAD_BUDGET_BYTES = 95_000_000_000
 
 EXPORT_FOLDERS = {
     "instruction_jsonl": Path("30_curated/sft/instruction-jsonl/instruction_jsonl.jsonl"),
@@ -451,16 +455,16 @@ def file_record(root: Path, path: Path) -> dict[str, Any]:
     }
 
 
-def write_bdxl_plan(root: Path, release_id: str, files: list[Path]) -> Path:
+def write_archive_plan(root: Path, release_id: str, files: list[Path]) -> Path:
     plan_files = [file_record(root, path) for path in files if path.exists() and path.stat().st_size > 0]
     volumes: list[dict[str, Any]] = []
-    current: dict[str, Any] = {"volume_id": f"BDXL-{release_id}-001", "bytes": 0, "files": []}
+    current: dict[str, Any] = {"volume_id": f"ARCHIVE-{release_id}-001", "bytes": 0, "files": []}
     volume_index = 1
     for record in plan_files:
-        if current["files"] and current["bytes"] + record["bytes"] > BDXL_PAYLOAD_BUDGET_BYTES:
+        if current["files"] and current["bytes"] + record["bytes"] > ARCHIVE_PAYLOAD_BUDGET_BYTES:
             volumes.append(current)
             volume_index += 1
-            current = {"volume_id": f"BDXL-{release_id}-{volume_index:03d}", "bytes": 0, "files": []}
+            current = {"volume_id": f"ARCHIVE-{release_id}-{volume_index:03d}", "bytes": 0, "files": []}
         current["files"].append(record)
         current["bytes"] += record["bytes"]
     if current["files"] or not volumes:
@@ -470,11 +474,11 @@ def write_bdxl_plan(root: Path, release_id: str, files: list[Path]) -> Path:
         "schema_version": 1,
         "generated_at": now_utc(),
         "release_id": release_id,
-        "media_class": "BDXL",
-        "payload_budget_bytes": BDXL_PAYLOAD_BUDGET_BYTES,
+        "media_class": "ARCHIVE",
+        "payload_budget_bytes": ARCHIVE_PAYLOAD_BUDGET_BYTES,
         "volumes": volumes,
     }
-    path = root / "data" / "training-library" / "90_archives" / "bdxl-100gb" / "staging" / f"{release_id}-bdxl-plan.json"
+    path = root / "data" / "training-library" / "90_archives" / "archive-100gb" / "staging" / f"{release_id}-archive-plan.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
@@ -487,7 +491,7 @@ def write_manifest(
     exports: dict[str, dict[str, Any]],
     rejections: list[dict[str, Any]],
     files: list[Path],
-    bdxl_plan_path: Path,
+    archive_plan_path: Path,
 ) -> Path:
     release_root = root / "data" / "training-library" / "40_releases" / "by-date" / release_id
     release_root.mkdir(parents=True, exist_ok=True)
@@ -499,7 +503,7 @@ def write_manifest(
         "exports": exports,
         "rejections": rejections,
         "files": [file_record(root, path) for path in files if path.exists()],
-        "bdxl_plan_path": rel(root, bdxl_plan_path),
+        "archive_plan_path": rel(root, archive_plan_path),
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
@@ -525,7 +529,7 @@ def write_report(root: Path, release_id: str, manifest: dict[str, Any]) -> Path:
         f"- Promoted: `{manifest['summary']['promoted']}`",
         f"- Rejected: `{manifest['summary']['rejected']}`",
         f"- Manifest: `{manifest['manifest_path']}`",
-        f"- BDXL plan: `{manifest['bdxl_plan_path']}`",
+        f"- ARCHIVE plan: `{manifest['archive_plan_path']}`",
         "",
         "## Exports",
         "",
@@ -612,14 +616,14 @@ def build_data_foundry(
     rejection_path = write_rejections(root, release_id, rejections)
     output_files.extend(raw_receipt_files)
     output_files.append(rejection_path)
-    bdxl_plan_path = write_bdxl_plan(root, release_id, [path for path in output_files if path.name != rejection_path.name])
+    archive_plan_path = write_archive_plan(root, release_id, [path for path in output_files if path.name != rejection_path.name])
     summary = {
         "receipts_seen": receipt_count,
         "promoted": sum(len(rows) for rows in promoted_rows.values()),
         "rejected": len(rejections),
         "export_files": len(export_info),
     }
-    manifest_path = write_manifest(root, release_id, summary, export_info, rejections, output_files, bdxl_plan_path)
+    manifest_path = write_manifest(root, release_id, summary, export_info, rejections, output_files, archive_plan_path)
 
     result = {
         "schema_version": 1,
@@ -629,7 +633,7 @@ def build_data_foundry(
         "exports": export_info,
         "rejections": rejections,
         "manifest_path": rel(root, manifest_path),
-        "bdxl_plan_path": rel(root, bdxl_plan_path),
+        "archive_plan_path": rel(root, archive_plan_path),
         "workflow_lane": "research",
         "data_lane": "research",
         "machinery_zone": "FACTORY",
