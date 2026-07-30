@@ -31,6 +31,7 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_runtime_paths, "COORDINATION_ROOT", home / "coordination")
     monkeypatch.setattr(agent_runtime_paths, "WORKTREE_ROOT", home / "worktrees")
     monkeypatch.setattr(cli, "AGENTREADY_HOME", home)
+    monkeypatch.setattr(cli, "_best_effort", lambda *_args, **_kwargs: None)
     return work
 
 
@@ -97,6 +98,25 @@ def test_handoff_does_not_mutate_original_intent_summary(repo):
     task = _only_task(repo)
     assert task["summary"].startswith("outcome summary changed")
     assert task["intent_summary"] == "original declared implementation intent"
+
+
+def test_handoff_invokes_portable_data_foundry_runner(repo, monkeypatch):
+    assert _start(repo) == 0
+    task_id = _only_task(repo)["id"]
+    commands = []
+    monkeypatch.setattr(cli, "_best_effort", lambda command, **_kwargs: commands.append(command))
+
+    assert cli.main([
+        "task-handoff", "--repo", str(repo), "--task-id", task_id, "--agent", "claude",
+        "--summary", "portable handoff capture is exercised through the installed Python module",
+        "--evidence", "the unit test records the exact portable subprocess command",
+        "--next", "inspect the recorded command", "--status", "wip",
+    ]) == 0
+
+    command = commands[-1]
+    assert command[:3] == [cli.sys.executable, "-m", "agent_data_foundry_event_runner"]
+    assert command[command.index("--event-type") + 1] == "handoff"
+    assert command[command.index("--task-id") + 1] == task_id
 
 
 def test_task_start_weak_quality_exit3(repo):

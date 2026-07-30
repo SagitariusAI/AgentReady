@@ -5,8 +5,11 @@
 """Focused tests for portable repository bootstrap behavior."""
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -68,9 +71,9 @@ def test_bootstrap_creates_scaffolding_and_calls_init(tmp_path):
     for rel in ("AGENTS.md", ".gitignore", ".agentready.yaml"):
         assert (repo / rel).exists(), rel
     agents = (repo / "AGENTS.md").read_text(encoding="utf-8")
-    assert "agent-tool-router -Task" in agents and b.MARKER_START in agents
+    assert "agentready tool-router --task" in agents and b.MARKER_START in agents
     yaml = (repo / ".agentready.yaml").read_text(encoding="utf-8")
-    assert "version: 1" in yaml and "required_final_audit: agent-release-scorecard" in yaml
+    assert "version: 1" in yaml and "required_final_audit: agentready release-scorecard" in yaml
     assert ".agent-state" in result["files"]
 
 
@@ -78,6 +81,36 @@ def test_router_lines_contract():
     # The generated instructions retain routing, release, and handoff guidance.
     joined = "\n".join(b.ROUTER_LINES)
     assert "auditable" in joined
-    assert 'agent-tool-router -Task "<user request>" -Mode Plan' in joined
-    assert "agent-release-scorecard" in joined
+    assert 'agentready tool-router --task "<user request>" --mode plan' in joined
+    assert "agentready release-scorecard --repo ." in joined
+    assert "agentready coordination task-start" in joined
     assert "interpreted evidence" in joined
+
+
+def test_default_coordination_init_uses_public_console_command(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(b.subprocess, "run", fake_run)
+    b._default_coordination_init(tmp_path)
+    assert calls[0][0] == [
+        b.sys.executable,
+        "-m",
+        "agent_coordination.cli",
+        "coordination-init",
+        "--repo",
+        str(tmp_path),
+    ]
+
+
+def test_default_coordination_init_propagates_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        b.subprocess,
+        "run",
+        lambda command, **_kwargs: subprocess.CompletedProcess(command, 7, stdout="", stderr="blocked"),
+    )
+    with pytest.raises(RuntimeError, match="coordination initialization failed"):
+        b._default_coordination_init(tmp_path)

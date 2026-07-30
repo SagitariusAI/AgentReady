@@ -16,6 +16,7 @@ import argparse
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 MARKER_START = "<!-- AGENTREADY:START -->"
@@ -34,28 +35,29 @@ ROUTER_LINES = [
     "claims, or full-stack delivery work:",
     "",
     "```text",
-    'agent-tool-router -Task "<user request>" -Mode Plan',
+    'agentready tool-router --task "<user request>" --mode plan',
     "```",
     "",
     "Before final delivery claims:",
     "",
     "```powershell",
-    "agent-tool-router -Profile release -Mode Run -IncludeHeavy",
-    "agent-tool-router -Profile release -Mode Audit",
-    "agent-release-scorecard",
+    "agentready tool-router --profile release --mode run --include-heavy",
+    "agentready tool-router --profile release --mode audit",
+    "agentready release-scorecard --repo .",
     "```",
     "",
     "For multi-agent or large-repository work:",
     "",
     "```powershell",
-    "agent-coordination-init",
-    "agent-task-status",
-    'agent-tool-router -Task "<what this model intends to do>" -Mode Plan',
-    'agent-task-start -Title "<clear task title>" -Agent "<agent-id>" -Summary "<intent and current '
-    'scope>" -Paths <paths> -CreateWorktree',
-    "agent-conflict-check -TaskId <task-id>",
-    'agent-task-handoff -TaskId <task-id> -Operator "<operator-id>" -Summary "<what changed/current state>" '
-    '-Evidence "<interpreted test/evidence summary>" -Next "<next safe action or none remains>"',
+    "agentready coordination coordination-init --repo .",
+    "agentready coordination task-status --repo .",
+    'agentready tool-router --task "<what this model intends to do>" --mode plan',
+    'agentready coordination task-start --repo . --title "<clear task title>" --agent "<agent-id>" '
+    '--summary "<intent and current scope>" --paths "<paths>" --create-worktree',
+    'agentready coordination conflict-check --repo . --task-id "<task-id>"',
+    'agentready coordination task-handoff --repo . --task-id "<task-id>" --operator "<operator-id>" '
+    '--summary "<what changed/current state>" --evidence "<interpreted test/evidence summary>" '
+    '--next "<next safe action or none remains>"',
     "```",
     "",
     "Do not silently skip relevant AgentReady tools. If a relevant tool was not run, state why. Use "
@@ -71,14 +73,14 @@ ROUTER_LINES = [
 
 AGENTREADY_YAML = NEWLINE.join([
     "version: 1",
-    "router: agent-tool-router",
-    "required_final_audit: agent-release-scorecard",
+    "router: agentready tool-router",
+    "required_final_audit: agentready release-scorecard",
     "coordination:",
-    "  init: agent-coordination-init",
-    "  task_start: agent-task-start",
-    "  task_status: agent-task-status",
-    "  handoff: agent-task-handoff",
-    "  conflict_check: agent-conflict-check",
+    "  init: agentready coordination coordination-init",
+    "  task_start: agentready coordination task-start",
+    "  task_status: agentready coordination task-status",
+    "  handoff: agentready coordination task-handoff",
+    "  conflict_check: agentready coordination conflict-check",
     "reports_dir: .agent-reports",
     "state_dir: .agent-state",
 ]) + NEWLINE
@@ -114,11 +116,16 @@ def set_marked_block(path: Path, title: str, lines: list[str], force: bool = Fal
 
 
 def _default_coordination_init(repo: Path) -> None:
-    try:
-        subprocess.run(["agent-coordination-init", "-Repo", str(repo)], capture_output=True, text=True,
-                       timeout=120, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return
+    result = subprocess.run(
+        [sys.executable, "-m", "agent_coordination.cli", "coordination-init", "--repo", str(repo)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip() or "no diagnostic output"
+        raise RuntimeError(f"coordination initialization failed ({result.returncode}): {detail}")
 
 
 def bootstrap(repo: Path, *, force: bool = False, template_root: Path | None = None,

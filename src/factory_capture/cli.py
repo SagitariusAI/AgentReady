@@ -14,7 +14,6 @@ import json
 import sys
 
 from factory_capture.events import append_event, last_events, new_event
-from factory_capture.fleet import deploy_fleet, fleet_status
 from factory_capture.gitstate import capture_git_state, find_repo_root
 from factory_capture.hooks import hooks_state, install_hooks, uninstall_hooks
 from factory_capture.redaction import redact_text
@@ -159,16 +158,6 @@ def _cmd_chat_inbox(args) -> int:
     return 0
 
 
-def _cmd_fleet(args) -> int:
-    result = (
-        deploy_fleet(args.agentready_home)
-        if args.action == "deploy"
-        else fleet_status(args.agentready_home)
-    )
-    print(json.dumps(result, indent=2))
-    return 0 if result["status"] == "PASS" else 1
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("factory-capture", description="Local-first work capture runtime.")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -205,10 +194,6 @@ def build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--interval", type=int, default=10, help="watch poll interval seconds")
     chat.set_defaults(func=_cmd_chat_inbox)
 
-    fleet = sub.add_parser("fleet", help="deploy or audit capture across the AgentReady project registry")
-    fleet.add_argument("action", choices=["status", "deploy"])
-    fleet.add_argument("--agentready-home", help="AgentReady root containing the managed-project registry")
-    fleet.set_defaults(func=_cmd_fleet)
     return parser
 
 

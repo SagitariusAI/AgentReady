@@ -24,10 +24,8 @@ from agent_coordination import store as st
 from agent_coordination import tasks as tk
 from agent_coordination.chat import publish_chat, show_unread
 from agent_coordination.common import new_task_id, now_stamp
-from agent_runtime_paths import worktree_root
+from agent_runtime_paths import AGENTREADY_HOME, worktree_root
 from agent_workflow_lanes import WORKFLOW_LANES, classify_workflow_lane
-
-AGENTREADY_HOME = Path(os.environ.get("AGENTREADY_HOME") or Path(__file__).resolve().parents[2])
 
 
 # ----------------------------------------------------------------------------- adapters (best-effort)
@@ -324,12 +322,25 @@ def cmd_task_handoff(a: argparse.Namespace) -> int:
     publish_chat(work_author, f"handed off [{a.status}]: {task.get('title')}{chat_next}")
 
     # Terminal handoffs are the right boundary for Factory data capture. Best-effort, never blocks.
-    runner = AGENTREADY_HOME / "bin" / "agent-data-foundry-event-runner.ps1"
-    psh = _pwsh()
-    if psh and runner.exists():
-        _best_effort([psh, "-NoProfile", "-File", str(runner), "-EventType", "handoff",
-                      "-TaskId", a.task_id, "-SourceRepo", str(repo), "-DebounceSeconds", "300",
-                      "-MaxRoots", "1000", "-LimitPerRoot", "10000"])
+    _best_effort([
+        sys.executable,
+        "-m",
+        "agent_data_foundry_event_runner",
+        "--root",
+        str(AGENTREADY_HOME),
+        "--event-type",
+        "handoff",
+        "--task-id",
+        a.task_id,
+        "--source-repo",
+        str(repo),
+        "--debounce-seconds",
+        "300",
+        "--max-roots",
+        "1000",
+        "--limit-per-root",
+        "10000",
+    ])
 
     print(f"Agent handoff written: {handoff_path}")
     return 0
@@ -417,10 +428,14 @@ def cmd_task_review(a: argparse.Namespace) -> int:
     review_path = state / "reviews" / f"{stamp}-review.md"
 
     if a.run_scorecard:
-        sc = AGENTREADY_HOME / "bin" / "agent-release-scorecard.ps1"
-        psh = _pwsh()
-        if psh and sc.exists():
-            _best_effort([psh, "-NoProfile", "-File", str(sc), "-Repo", str(repo), "-WarnOnly"])
+        _best_effort([
+            sys.executable,
+            "-m",
+            "agent_release_scorecard",
+            "--repo",
+            str(repo),
+            "--warn-only",
+        ])
 
     head = _git(repo, "log", "-1", "--oneline")
     status = _git(repo, "status", "--short")
@@ -428,16 +443,28 @@ def cmd_task_review(a: argparse.Namespace) -> int:
     ci = str(repo / ".agent-reports" / "ci" / "agent-ci-local-latest.log")
 
     router_audit = ""
-    router = AGENTREADY_HOME / "bin" / "agent-tool-router.ps1"
-    psh = _pwsh()
-    if psh and router.exists():
-        try:
-            res = subprocess.run([psh, "-NoProfile", "-File", str(router), "-Profile", "release",
-                                  "-Mode", "Audit"], cwd=str(repo), capture_output=True, text=True,
-                                 timeout=180, check=False)
-            router_audit = res.stdout.rstrip("\n")
-        except Exception:  # noqa: BLE001
-            router_audit = "(router audit unavailable)"
+    try:
+        res = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_router",
+                "--profile",
+                "release",
+                "--mode",
+                "audit",
+                "--repo",
+                str(repo),
+            ],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+        router_audit = res.stdout.rstrip("\n")
+    except Exception:  # noqa: BLE001
+        router_audit = "(router audit unavailable)"
 
     lines = [
         "# Agent Review Record", "",

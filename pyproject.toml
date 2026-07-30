@@ -5,7 +5,7 @@ description = "Local-first software-factory governance, coordination, capture, q
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-authors = [{ name = "Sagittarius AI", email = "contact@example.invalid" }]
+authors = [{ name = "Sagittarius AI" }]
 keywords = ["software-factory", "agent-governance", "release-engineering"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -28,6 +28,7 @@ toolbox = [
 
 [project.scripts]
 agentready = "agentready_cli:main"
+agent-deploy = "agent_deploy:main"
 agent-bootstrap-repo = "agent_bootstrap_repo:main"
 agent-ci-local = "agent_ci_local:main"
 agent-commit-guard = "agent_coordination.commit_guard:main"
@@ -71,6 +72,7 @@ py-modules = [
   "agent_governance_detectors",
   "agent_data_foundry",
   "agent_data_foundry_event_runner",
+  "agent_deploy",
   "agent_public_package",
   "agent_publication_guard",
   "agent_history_search",
