@@ -1,0 +1,129 @@
+[project]
+name = "agentready"
+version = "1.0.0"
+description = "Local-first software-factory governance, coordination, capture, quality, and release tooling"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "AgentReady contributors" }]
+keywords = ["software-factory", "agent-governance", "release-engineering"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.optional-dependencies]
+toolbox = [
+  "duckdb==1.5.3",
+  "networkx==3.6.1",
+  "pandas==3.0.3",
+  "sympy==1.14.0",
+  "z3-solver==4.16.0.0",
+]
+
+[project.scripts]
+agentready = "agentready_cli:main"
+agent-bootstrap-repo = "agent_bootstrap_repo:main"
+agent-ci-local = "agent_ci_local:main"
+agent-commit-guard = "agent_coordination.commit_guard:main"
+agent-coordination = "agent_coordination.cli:main"
+agent-governance-detectors = "agent_governance_detectors:main"
+agent-data-foundry = "agent_data_foundry:main"
+agent-data-foundry-event-runner = "agent_data_foundry_event_runner:main"
+agent-package-public = "agent_public_package:main"
+agent-publication-guard = "agent_publication_guard:main"
+agent-history-search = "agent_history_search:main"
+agent-release-readiness = "agent_release_readiness:main"
+agent-release-scorecard = "agent_release_scorecard:main"
+agent-report-contract = "agent_report_contract:main"
+agent-security-scan = "agent_security_scan:main"
+agent-tool-context = "agent_tool_context:main"
+agent-tool-router = "agent_router:main"
+agent-version-record = "agent_version_record:main"
+agent-workstate = "agent_workstate:main"
+factory-capture = "factory_capture.cli:main"
+
+[dependency-groups]
+dev = [
+  "bandit>=1.8",
+  "build>=1.2",
+  "coverage>=7.10",
+  "pyright>=1.1",
+  "pytest>=8.4",
+  "ruff>=0.12",
+]
+
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = [
+  "agent_bootstrap_repo",
+  "agent_ci_local",
+  "agent_deterministic_toolbox",
+  "agent_governance_detectors",
+  "agent_data_foundry",
+  "agent_data_foundry_event_runner",
+  "agent_public_package",
+  "agent_publication_guard",
+  "agent_history_search",
+  "agent_release_readiness",
+  "agent_release_scorecard",
+  "agent_report_contract",
+  "agent_router",
+  "agent_runtime_paths",
+  "agent_security_scan",
+  "agent_tool_context",
+  "agent_version_record",
+  "agent_workflow_lanes",
+  "agent_workstate",
+  "agentready_cli",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent_coordination*", "agent_data_foundry_lib*", "factory_capture*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = ["error"]
+norecursedirs = [
+  ".*",
+  "build",
+  "dist",
+  "runtime",
+  "state",
+  "venv",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 70
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["src"]
+
+[tool.bandit]
+# These tools intentionally invoke fixed argv arrays without shell=True. Bandit's
+# generic subprocess import/call rules cannot distinguish that constrained use.
+skips = ["B404", "B603", "B607"]

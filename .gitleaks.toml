@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated Python bytecode and cache directories are non-source build output"
+paths = [
+  '''(^|/)(__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache)(/|$)''',
+  '''\.py[co]$''',
+]

@@ -1,0 +1,77 @@
+# Environments, caches, and build output
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# AgentReady runtime state and evidence
+.agent-reports/
+.agent-state/
+.agentready/
+.factory_capture/
+.agent_graph/
+coordination/
+data/
+reports/
+runtime/
+state/
+worktrees/
+artifacts/
+logs/
+
+# Databases, event streams, datasets, and indexes
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.duckdb
+*.jsonl
+*.parquet
+*.arrow
+*.feather
+*.faiss
+*.index
+*.wal
+*.shm
+*.journal
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+credentials/
+secrets/
+tokens/
+*.pem
+*.key
+*.pfx
+*.p12
+*.kdbx
+*.age
+*.sops.*
+
+# Editors and local assistants
+.idea/
+.vscode/
+.claude/
+.codex/
+.serena/
+.obsidian/
+
+# Temporary and packaged artifacts
+*.log
+*.tmp
+*.bak
+*.bak.*
+*.zip
+*.7z
+*.tar
+*.tar.gz

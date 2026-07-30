@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agentready.product_state_ledger.v0.1",
+  "title": "AgentReady Product State Ledger",
+  "description": "Evidence-backed product component states. Documentation alone is not implementation evidence.",
+  "type": "object",
+  "required": ["schema_version", "product", "subsystem", "updated_at", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "sf.product_state_ledger.v0.1"},
+    "product": {"type": "string"},
+    "subsystem": {"type": ["string", "null"]},
+    "updated_at": {"type": ["string", "null"]},
+    "components": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/component"}
+    }
+  },
+  "definitions": {
+    "status": {
+      "enum": [
+        "IDEA", "DEFINED", "PLANNED", "IN_PROGRESS", "PARTIAL", "BUILT",
+        "TESTED", "PACKAGED", "RELEASE_CANDIDATE", "PRODUCTION_READY",
+        "DEPRECATED", "BLOCKED", "SEALED"
+      ]
+    },
+    "evidence_tag": {
+      "enum": [
+        "DOC_DEFINED_ONLY", "CODE_EXISTS", "TEST_EXISTS", "GATE_GREEN",
+        "PACKAGED", "RUNTIME_SMOKE_PASSED", "USER_WORKFLOW_VERIFIED",
+        "FOUNDER_ACCEPTED", "COMMERCIAL_CLEARANCE_PENDING"
+      ]
+    },
+    "evidence_item": {
+      "type": "object",
+      "required": ["tag", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "tag": {"$ref": "#/definitions/evidence_tag"},
+        "ref": {"type": "string"},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": [
+        "component_id", "component_name", "status", "evidence_tags", "evidence",
+        "blocked_by", "not_yet", "related_docs", "related_commits", "related_tests",
+        "related_receipts", "founder_acceptance", "commercial_clearance",
+        "last_verified_at", "verifier"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "component_id": {"type": "string"},
+        "component_name": {"type": "string"},
+        "status": {"$ref": "#/definitions/status"},
+        "evidence_tags": {"type": "array", "items": {"$ref": "#/definitions/evidence_tag"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/definitions/evidence_item"}},
+        "blocked_by": {"type": ["string", "null"]},
+        "not_yet": {"type": "array", "items": {"type": "string"}},
+        "related_docs": {"type": "array", "items": {"type": "string"}},
+        "related_commits": {"type": "array", "items": {"type": "string"}},
+        "related_tests": {"type": "array", "items": {"type": "string"}},
+        "related_receipts": {"type": "array", "items": {"type": "string"}},
+        "founder_acceptance": {"type": ["string", "null"]},
+        "commercial_clearance": {"type": ["string", "null"]},
+        "last_verified_at": {"type": ["string", "null"]},
+        "verifier": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
