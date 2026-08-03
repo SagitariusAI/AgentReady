@@ -154,6 +154,6 @@ and [uninstallation](docs/UNINSTALL.md).
 
 ## Ownership and license
 
-AgentReady is owned and maintained by Sagittarius AI. Project owner: Alex Burca.
+AgentReady is owned and maintained by SagitariusAI. Project owner: Alex Burca.
 
-Copyright 2026 Sagittarius AI. Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+Copyright 2026 SagitariusAI. Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
