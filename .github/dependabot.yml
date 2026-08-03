@@ -13,3 +13,18 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     labels: [dependencies, python]
+    # These declarations are mirrored in the public prerequisite inventory.
+    # Update both surfaces together in a governed change instead of opening a
+    # Dependabot PR that cannot satisfy the repository's consistency test.
+    ignore:
+      - dependency-name: bandit
+      - dependency-name: build
+      - dependency-name: coverage
+      - dependency-name: duckdb
+      - dependency-name: networkx
+      - dependency-name: pandas
+      - dependency-name: pyright
+      - dependency-name: pytest
+      - dependency-name: ruff
+      - dependency-name: sympy
+      - dependency-name: z3-solver
