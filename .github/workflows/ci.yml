@@ -33,7 +33,12 @@ jobs:
           cache: pip
 
       - name: Install project and verification tools
-        run: python -m pip install --disable-pip-version-check -e . pytest ruff build
+        run: python -m pip install --disable-pip-version-check -e . pytest ruff build uv
+
+      - name: Configure test Git identity
+        run: |
+          git config --global user.name "AgentReady CI"
+          git config --global user.email "agentready-ci"
 
       - name: Lint
         run: ruff check src tests
