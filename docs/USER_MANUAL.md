@@ -138,6 +138,7 @@ The installed console commands are:
 - `agent-publication-guard`, `agent-package-public`, `agent-release-readiness`, and `agent-release-scorecard` —
   publication and release checks;
 - `agent-data-foundry` and `agent-data-foundry-event-runner` — user-controlled dataset curation and validation.
+- `agent-memory-pipeline` — durable, configuration-driven local memory-to-graph convergence.
 
 Run `<command> --help` before using an unfamiliar command. The unified form is also available; for example,
 `agentready coordination --help` dispatches to the public coordination command.

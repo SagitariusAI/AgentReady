@@ -1,0 +1,20 @@
+{
+  "root": ".",
+  "source_globs": [
+    "memories/**/*.md"
+  ],
+  "stages": [
+    {
+      "name": "refresh graph",
+      "argv": ["{python}", "refresh_memory_graph.py"]
+    },
+    {
+      "name": "verify source parity",
+      "argv": ["{python}", "verify_memory_graph.py", "--root", "{root}"]
+    }
+  ],
+  "settle_seconds": 20,
+  "poll_seconds": 10,
+  "retry_base_seconds": 30,
+  "command_timeout": 3600
+}

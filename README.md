@@ -10,6 +10,7 @@ AgentReady provides:
 - workflow-lane and memory-use receipts;
 - local CI, security, publication, packaging, and release-readiness checks;
 - deterministic utilities for common engineering calculations.
+- an autonomous, configuration-driven memory-to-graph pipeline with a durable local queue and watchdog.
 
 The installed runtime does not require a hosted service. Initial installation may contact Python package indexes
 through uv when required build components are not already cached. Optional local-model summarization is networked
@@ -65,6 +66,10 @@ python .\install-agentready.py --target-repo "C:\path\to\your-repository"
 
 See [Windows installation](docs/INSTALL_WINDOWS.md) for path configuration and
 [the user manual](docs/USER_MANUAL.md) for human and autonomous-agent workflows.
+
+For local memory corpora, see the [autonomous memory pipeline](docs/autonomous-memory-pipeline.md). The public
+distribution supplies the generic queue, watcher, scheduler, and health contract; it does not include private data,
+model endpoints, or operating configuration.
 
 ### Deterministic agent installation
 

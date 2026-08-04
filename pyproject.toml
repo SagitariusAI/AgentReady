@@ -48,6 +48,7 @@ agent-tool-context = "agent_tool_context:main"
 agent-tool-router = "agent_router:main"
 agent-version-record = "agent_version_record:main"
 agent-workstate = "agent_workstate:main"
+agent-memory-pipeline = "agent_memory_pipeline:main"
 factory-capture = "factory_capture.cli:main"
 
 [dependency-groups]
@@ -78,6 +79,7 @@ py-modules = [
   "agent_prerequisites",
   "agent_publication_guard",
   "agent_history_search",
+  "agent_memory_pipeline",
   "agent_release_readiness",
   "agent_release_scorecard",
   "agent_report_contract",
