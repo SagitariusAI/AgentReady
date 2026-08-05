@@ -85,6 +85,9 @@ def test_router_lines_contract():
     assert "agentready release-scorecard --repo ." in joined
     assert "agentready coordination task-start" in joined
     assert "interpreted evidence" in joined
+    assert "Act as an engineering operator, not a narrator" in joined
+    assert "agentready session-reentry issue" in joined
+    assert "DONE means the applicable gate is green for the exact commit" in joined
 
 
 def test_default_coordination_init_uses_public_console_command(monkeypatch, tmp_path):

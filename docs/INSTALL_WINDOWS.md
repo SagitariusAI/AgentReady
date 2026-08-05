@@ -170,6 +170,7 @@ agentready --help
 agent-deploy --help
 agent-prerequisites --profile recommended
 agent-coordination --help
+agent-session-reentry --help
 factory-capture --help
 ```
 

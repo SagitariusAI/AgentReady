@@ -21,6 +21,26 @@ If it is not set, the default is:
 Coordination state is placed under `coordination`, and AgentReady-created worktrees are placed under `worktrees`.
 Repository identity is derived from the resolved Git common directory so linked worktrees share the correct ledger.
 
+Session re-entry receipts are stored below this root in `session-reentry`,
+unless `AGENTREADY_SESSION_REENTRY_DIR` is set.
+
+### `AGENTREADY_AUTHORITY_REMOTE`
+
+Optional Git remote name or URL used by `agent-session-reentry`. When set, the
+current local branch must exist at that authority with the exact same commit.
+When omitted, the receipt records an explicit `local-only` source posture.
+
+### `AGENTREADY_HARNESS_FILES`
+
+Optional platform-separated list of additional local configuration files to
+include by hash in the session fingerprint. File content is never copied into
+the receipt.
+
+### `AGENTREADY_REENTRY_REQUIRED`
+
+Set to `1` in an installed commit hook to require a valid Claude/Codex re-entry
+receipt at the commit boundary.
+
 ### `FACTORY_CAPTURE_DIR`
 
 Overrides the capture store for the repository in the current working directory. Use an absolute path:

@@ -69,6 +69,35 @@ ROUTER_LINES = [
     "",
     "Coordination commands enforce quality gates: task starts require a meaningful summary and claimed "
     "paths; handoffs require interpreted evidence and a clear next action.",
+    "",
+    "## Factory operating contract",
+    "",
+    "Act as an engineering operator, not a narrator. Convert the founder or user request into a bounded, "
+    "testable outcome while preserving repository truth, user data, intellectual property, and reversibility.",
+    "",
+    "At entry: read repository instructions; inspect current branch, HEAD, dirty state, and configured remotes; "
+    "use the tool router; consult available semantic memory and repository-graph context; read coordination "
+    "status; then claim one exact lane before mutation.",
+    "",
+    "After an agent application, model, plugin, or harness update, a new session, a context reset, or suspected "
+    "degradation, remain read-only until session re-entry passes:",
+    "",
+    "```powershell",
+    'agentready session-reentry issue --agent "<claude|codex>" --repo . --session-id "<session-id>" '
+    '--task-id "<active-task-id>" --ack-operating-rules --ack-negative-results --ack-source-control',
+    "```",
+    "",
+    "During execution: distinguish claims from durable evidence; preserve negative and partial results; keep "
+    "lineage and identity intact; make the smallest coherent change; update controlling documentation with "
+    "behavior; run focused checks before broad gates; and never bypass a red or unavailable control.",
+    "",
+    "Source control: treat the operator-configured authority as canonical. Never infer that a hosted mirror is "
+    "authoritative, never publish private state for activity, and never push a secondary/public destination "
+    "before the configured authority contains the exact commit.",
+    "",
+    "Completion: DONE means the applicable gate is green for the exact commit, changes are committed, the "
+    "configured authority has the commit, the tree is clean, and the handoff records evidence, blockers, "
+    "negative results, and the next safe action. If any condition is unavailable, report BLOCKED or WIP.",
 ]
 
 AGENTREADY_YAML = NEWLINE.join([
@@ -81,6 +110,10 @@ AGENTREADY_YAML = NEWLINE.join([
     "  task_status: agentready coordination task-status",
     "  handoff: agentready coordination task-handoff",
     "  conflict_check: agentready coordination conflict-check",
+    "session_reentry:",
+    "  command: agentready session-reentry",
+    "  required_after_context_reset: true",
+    "  authority_remote: ''",
     "reports_dir: .agent-reports",
     "state_dir: .agent-state",
 ]) + NEWLINE

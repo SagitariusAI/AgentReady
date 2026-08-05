@@ -11,6 +11,15 @@ AgentReady provides:
 - local CI, security, publication, packaging, and release-readiness checks;
 - deterministic utilities for common engineering calculations.
 - an autonomous, configuration-driven memory-to-graph pipeline with a durable local queue and watchdog.
+- a fail-closed Claude/Codex session re-entry gate for harness updates and context resets.
+
+The re-entry gate can hold a frontier agent read-only until it reconciles
+urgent instructions, one active task, dirty state, source authority, and a
+short-lived session receipt. See [Frontier-agent session re-entry](docs/SESSION_REENTRY.md).
+
+Repository bootstrap also installs a vendor-neutral
+[factory operating prompt](docs/AGENT_FACTORY_PROMPT.md), so agents receive a
+coherent lifecycle contract rather than an unconnected list of commands.
 
 The installed runtime does not require a hosted service. Initial installation may contact Python package indexes
 through uv when required build components are not already cached. Optional local-model summarization is networked

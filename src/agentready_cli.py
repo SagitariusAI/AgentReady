@@ -11,6 +11,7 @@ COMMANDS: dict[str, str] = {
     "bootstrap-repo": "agent_bootstrap_repo",
     "ci": "agent_ci_local",
     "commit-guard": "agent_coordination.commit_guard",
+    "session-reentry": "agent_session_reentry",
     "coordination": "agent_coordination.cli",
     "factory-capture": "factory_capture.cli",
     "governance-check": "agent_governance_detectors",
@@ -45,6 +46,8 @@ def _entrypoint(command: str):
         from agent_ci_local import main
     elif command == "commit-guard":
         from agent_coordination.commit_guard import main
+    elif command == "session-reentry":
+        from agent_session_reentry import main
     elif command == "coordination":
         from agent_coordination.cli import main
     elif command == "factory-capture":

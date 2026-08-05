@@ -69,6 +69,32 @@ def test_covered_path_allows(repo):
     assert v["verdict"] == "allow" and v["reason"] == "ok"
 
 
+def test_real_hook_mode_requires_reentry_receipt(repo, monkeypatch):
+    _claim(repo)
+    monkeypatch.setenv("AGENTREADY_REENTRY_REQUIRED", "1")
+    monkeypatch.setattr(commit_guard, "verify_receipt", lambda **_kwargs: {
+        "status": "BLOCKED", "failures": ["receipt_unavailable"]
+    })
+    blocked = commit_guard.evaluate(repo, paths=["src/a.py"], agent="claude")
+    assert blocked["reason"] == "reentry_required"
+    assert blocked["reentry_failures"] == ["receipt_unavailable"]
+
+
+def test_hook_infers_single_covering_frontier_agent(repo, monkeypatch):
+    _claim(repo)
+    observed = {}
+    monkeypatch.setenv("AGENTREADY_REENTRY_REQUIRED", "1")
+
+    def verify(**kwargs):
+        observed.update(kwargs)
+        return {"status": "PASS", "failures": []}
+
+    monkeypatch.setattr(commit_guard, "verify_receipt", verify)
+    assert commit_guard.evaluate(repo, paths=["src/a.py"], agent=None)["verdict"] == "allow"
+    assert observed["agent"] == "claude"
+    assert observed["task_ids"] == {"t1"}
+
+
 def test_required_memory_receipts_block_commit_until_compliant(repo):
     _claim(repo, memory_compliance=mc.new_policy())
     blocked = commit_guard.evaluate(repo, paths=["src/a.py"], agent="claude")

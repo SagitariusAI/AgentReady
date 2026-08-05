@@ -1,6 +1,6 @@
 [project]
 name = "agentready"
-version = "1.0.1"
+version = "1.1.0"
 description = "Local-first software-factory governance, coordination, capture, quality, and release tooling"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,7 @@ agent-deploy = "agent_deploy:main"
 agent-bootstrap-repo = "agent_bootstrap_repo:main"
 agent-ci-local = "agent_ci_local:main"
 agent-commit-guard = "agent_coordination.commit_guard:main"
+agent-session-reentry = "agent_session_reentry:main"
 agent-coordination = "agent_coordination.cli:main"
 agent-governance-detectors = "agent_governance_detectors:main"
 agent-data-foundry = "agent_data_foundry:main"
@@ -85,6 +86,7 @@ py-modules = [
   "agent_report_contract",
   "agent_router",
   "agent_runtime_paths",
+  "agent_session_reentry",
   "agent_security_scan",
   "agent_tool_context",
   "agent_version_record",

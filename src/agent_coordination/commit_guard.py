@@ -14,6 +14,7 @@ from agent_coordination.memory_compliance import completion_issues
 from agent_coordination.paths import path_overlap, protected_path_intent, to_path_list
 from agent_coordination.store import resolve_repo, state_root
 from agent_coordination.tasks import get_tasks
+from agent_session_reentry import FRONTIER_AGENTS, verify_receipt
 
 
 def staged_paths(repo) -> list[str]:
@@ -47,6 +48,8 @@ def evaluate(repo=None, paths=None, agent: str | None = None, override: str | No
 
         active = get_tasks(repo_root, status=("claimed", "in_progress"))
         uncovered, protected_failures, memory_failures = [], [], []
+        covering_task_ids: set[str] = set()
+        covering_agents: set[str] = set()
         for p in paths:
             covered = False
             protected_issue = ""
@@ -69,6 +72,8 @@ def evaluate(repo=None, paths=None, agent: str | None = None, override: str | No
                             memory_failures.append(memory_issue)
                             continue
                         covered = True
+                        covering_task_ids.add(str(task.get("id") or ""))
+                        covering_agents.add(str(task.get("agent") or "").lower())
                         break
                 if covered:
                     break
@@ -79,9 +84,25 @@ def evaluate(repo=None, paths=None, agent: str | None = None, override: str | No
         if uncovered or protected_failures or memory_failures:
             return {"verdict": "block", "exit_code": 1, "reason": "blocked",
                     "uncovered": uncovered, "protected_failures": protected_failures,
-                    "memory_failures": memory_failures}
+                    "memory_failures": memory_failures, "reentry_failures": []}
+        effective_agent = (agent or "").lower()
+        if not effective_agent and len(covering_agents) == 1:
+            effective_agent = next(iter(covering_agents))
+        if os.environ.get("AGENTREADY_REENTRY_REQUIRED") == "1" and effective_agent in FRONTIER_AGENTS:
+            verification = verify_receipt(
+                agent=effective_agent,
+                repo=repo_root,
+                session_id=os.environ.get("AGENTREADY_SESSION_ID", ""),
+                task_ids=covering_task_ids,
+            )
+            if verification.get("status") != "PASS":
+                return {
+                    "verdict": "block", "exit_code": 1, "reason": "reentry_required",
+                    "uncovered": [], "protected_failures": [], "memory_failures": [],
+                    "reentry_failures": list(verification.get("failures") or ["receipt_not_pass"]),
+                }
         return {"verdict": "allow", "exit_code": 0, "reason": "ok",
-                "uncovered": [], "protected_failures": [], "memory_failures": []}
+                "uncovered": [], "protected_failures": [], "memory_failures": [], "reentry_failures": []}
     except Exception as exc:  # noqa: BLE001 - enforcement failures must be visible and blocking
         return {"verdict": "block", "exit_code": 2, "reason": "enforcement_error",
                 "error": f"{type(exc).__name__}: {exc}",
@@ -93,6 +114,7 @@ def render_block(
     uncovered: list[str],
     protected_failures: list[str],
     memory_failures: list[str] | None = None,
+    reentry_failures: list[str] | None = None,
 ) -> str:
     who = f" by agent '{agent}'" if agent else ""
     agent_shown = f"'{agent}'" if agent else "<unset>"
@@ -106,6 +128,9 @@ def render_block(
     if memory_failures:
         lines.append("These covering claims have not satisfied the memory-first receipt gate:")
         lines += [f"    {issue}" for issue in memory_failures]
+    if reentry_failures:
+        lines.append("This frontier-agent session has no valid re-entry receipt:")
+        lines += [f"    {issue}" for issue in reentry_failures]
     lines += [
         "",
         "Already claimed this lane and still blocked? Check, in order:",
@@ -120,6 +145,8 @@ def render_block(
         "say that kind of work explicitly.",
         "  - Memory-first: new substantive tasks require graph-query plus semantic memory-read receipts, or an "
         "explicit no-relevant-memory receipt, before commit.",
+        "  - Session re-entry: after an agent or harness update, new session, or context reset, run "
+        "agent-session-reentry issue and resolve every blocker.",
         "",
         "Remedy - claim the lane first:",
         f"    agent-task-start -Title '<what>' -Agent <you> -Summary '<intent>' -Paths {','.join(uncovered)}",
@@ -166,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
         return int(verdict["exit_code"])
     if verdict["verdict"] == "block":
         print(render_block(agent, verdict["uncovered"], verdict["protected_failures"],
-                           verdict.get("memory_failures")))
+                           verdict.get("memory_failures"), verdict.get("reentry_failures")))
         return 1
     if not args.quiet and verdict["reason"] == "ok":
         print("[commit-guard] OK - all staged paths covered by an active intent-logged claim.")

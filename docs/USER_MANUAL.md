@@ -129,7 +129,7 @@ The installed console commands are:
 - `agentready` — unified public command dispatcher;
 - `agent-deploy` and `agent-bootstrap-repo` — deployment and repository onboarding;
 - `agent-prerequisites` — required and optional third-party availability/download catalog;
-- `agent-coordination`, `agent-commit-guard`, `agent-history-search`, `agent-workstate`, and
+- `agent-coordination`, `agent-commit-guard`, `agent-session-reentry`, `agent-history-search`, `agent-workstate`, and
   `agent-version-record` — governed work and evidence;
 - `factory-capture` — local repository activity capture;
 - `agent-tool-router` and `agent-tool-context` — deterministic tool selection and model-facing context;
@@ -142,6 +142,8 @@ The installed console commands are:
 
 Run `<command> --help` before using an unfamiliar command. The unified form is also available; for example,
 `agentready coordination --help` dispatches to the public coordination command.
+`agentready session-reentry --help` exposes the same re-entry command through
+the unified dispatcher. See [Frontier-agent session re-entry](SESSION_REENTRY.md).
 
 ## 4. Onboard a repository
 
