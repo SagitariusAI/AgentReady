@@ -1,6 +1,6 @@
 [project]
 name = "agentready"
-version = "1.1.0"
+version = "1.1.1"
 description = "Local-first software-factory governance, coordination, capture, quality, and release tooling"
 readme = "README.md"
 requires-python = ">=3.11"
