@@ -11,7 +11,25 @@ import subprocess
 from pathlib import Path
 
 AGENTREADY_HOME = Path(os.environ.get("AGENTREADY_HOME") or (Path.home() / ".agentready"))
-COORDINATION_ROOT = AGENTREADY_HOME / "coordination"
+
+
+def _coordination_root() -> Path:
+    """Where coordination stores live.
+
+    A dedicated ``AGENTREADY_COORDINATION_ROOT`` override exists as a test seam: it
+    lets the suite isolate the coordination store without moving ``AGENTREADY_HOME``
+    (which also anchors repo-file lookups, so relocating it would break everything
+    that reads them). It is unset in normal use, so behaviour is unchanged; the test
+    suite sets it before this module is imported so the constant below resolves to a
+    temporary directory instead of the user's real store.
+    """
+    override = os.environ.get("AGENTREADY_COORDINATION_ROOT", "").strip()
+    if override:
+        return Path(override)
+    return AGENTREADY_HOME / "coordination"
+
+
+COORDINATION_ROOT = _coordination_root()
 WORKTREE_ROOT = AGENTREADY_HOME / "worktrees"
 
 

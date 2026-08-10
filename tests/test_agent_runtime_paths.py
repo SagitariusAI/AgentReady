@@ -45,10 +45,17 @@ def test_git_common_dir_none_outside_repo(tmp_path):
     assert arp.git_common_dir(arp.resolve_repo(plain)) is None
 
 
-def test_store_layout_constants():
+def test_store_layout_constants(monkeypatch):
     assert "tasks" in arp.STORE_SUBDIRS and "events" in arp.STORE_SUBDIRS
     assert len(arp.STORE_SUBDIRS) == 9
-    assert arp.COORDINATION_ROOT.name == "coordination"
+    # The coordination root defaults to <home>/coordination, but the dedicated
+    # AGENTREADY_COORDINATION_ROOT seam overrides it -- that seam is how the suite
+    # isolates itself from the real store (so the live constant points at the
+    # isolated dir, not literally "coordination"). Verify both branches.
+    monkeypatch.delenv("AGENTREADY_COORDINATION_ROOT", raising=False)
+    assert arp._coordination_root() == arp.AGENTREADY_HOME / "coordination"
+    monkeypatch.setenv("AGENTREADY_COORDINATION_ROOT", str(arp.AGENTREADY_HOME / "elsewhere"))
+    assert arp._coordination_root() == arp.AGENTREADY_HOME / "elsewhere"
 
 
 def test_worktree_root_under_worktrees(tmp_path):
