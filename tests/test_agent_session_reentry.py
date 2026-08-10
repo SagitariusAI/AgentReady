@@ -93,6 +93,37 @@ def test_issue_and_verify_detect_harness_change(monkeypatch, tmp_path: Path, rep
     )["failures"]
 
 
+def test_acked_dirty_in_repo_harness_edit_is_forgiven_but_unacked_still_blocks(
+    monkeypatch, tmp_path: Path, repo: Path
+) -> None:
+    monkeypatch.setenv("AGENTREADY_SESSION_REENTRY_DIR", str(tmp_path / "receipts"))
+    _green(monkeypatch, repo)
+    hfile = str((repo / "src" / "harness_bit.py").resolve())
+    # Issue with a snapshot that enumerates its files; the in-repo harness file is
+    # acknowledged dirty (it falls under the task's claimed "src" lane).
+    monkeypatch.setattr(reentry, "harness_snapshot",
+                        lambda _a, _r: {"fingerprint": "fp", "files": {hfile: "v1"}})
+    monkeypatch.setattr(reentry, "dirty_paths", lambda _r: ["src/harness_bit.py"])
+    issued = reentry.issue_receipt(
+        agent="claude", repo=repo, session_id="session", task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+        acknowledge_dirty=True,
+    )
+    assert issued["status"] == "PASS"
+    # The acknowledged in-repo harness file changes: the fingerprint differs, but the
+    # edit was claimed, so verify FORGIVES it instead of wedging the session.
+    monkeypatch.setattr(reentry, "harness_snapshot",
+                        lambda _a, _r: {"fingerprint": "changed", "files": {hfile: "v2"}})
+    assert reentry.verify_receipt(agent="claude", repo=repo, session_id="session")["status"] == "PASS"
+    # A DIFFERENT, unacknowledged harness file changing still forces re-entry.
+    other = str((repo / "src" / "other_bit.py").resolve())
+    monkeypatch.setattr(reentry, "harness_snapshot",
+                        lambda _a, _r: {"fingerprint": "changed2", "files": {hfile: "v2", other: "z"}})
+    assert "harness_changed_since_receipt" in reentry.verify_receipt(
+        agent="claude", repo=repo, session_id="session"
+    )["failures"]
+
+
 def test_dirty_state_requires_claim_coverage_and_ack(monkeypatch, repo: Path) -> None:
     _green(monkeypatch, repo)
     (repo / "src").mkdir()

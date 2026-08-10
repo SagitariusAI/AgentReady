@@ -329,6 +329,53 @@ def issue_receipt(**kwargs) -> dict:
     return receipt
 
 
+def _harness_repo_rel(abs_path: str, repo: Path) -> str | None:
+    """Repo-relative POSIX path if the harness file is inside ``repo``, else None.
+
+    A harness file outside the repo -- the installed module itself, or a config in
+    the home directory -- cannot be claimed as a repo path through ``dirty_paths``
+    and so is never forgiven below. That is correct: those are the least
+    controllable harness files and should always force re-entry when they change.
+    """
+    try:
+        rel = os.path.relpath(abs_path, repo)
+    except ValueError:
+        return None
+    if rel.startswith(".."):
+        return None
+    return rel.replace("\\", "/")
+
+
+def unforgiven_harness_changes(current: dict, receipt: dict, repo: Path) -> list[str]:
+    """Harness files whose digest changed since the receipt AND are not forgiven.
+
+    A session that CLAIMED an in-repo harness file (``AGENTS.md``,
+    ``.agentready.yaml``, ``CLAUDE.md``) and acknowledged it dirty at issue is
+    expected to keep editing it; re-invalidating its own receipt on every such edit
+    is a self-churn wedge -- the edit locks the session out, and recovery needs the
+    receipt it just lost. So forgive a changed harness file ONLY when it is (a)
+    inside the repo and (b) named in the receipt's acknowledged ``dirty_paths``. Any
+    other changed harness file -- in-repo but unacked, or out-of-repo -- still forces
+    re-entry. An empty return means the fingerprint change is benign (the session's
+    own acknowledged edits).
+    """
+    receipt_files = (receipt.get("harness") or {}).get("files") or {}
+    acked = {str(p).replace("\\", "/") for p in (receipt.get("dirty_paths") or [])}
+    current_files = current.get("files") or {}
+    if not current_files:
+        # The fingerprint changed but we cannot enumerate WHICH files, so we cannot
+        # prove every change was acknowledged. Fail CLOSED -- never forgive blind.
+        return ["<unverifiable-harness-change>"]
+    offending: list[str] = []
+    for path_str, digest in current_files.items():
+        if receipt_files.get(path_str) == digest:
+            continue  # unchanged
+        rel = _harness_repo_rel(str(path_str), repo)
+        if rel is None or rel not in acked:
+            offending.append(str(path_str))
+    return offending
+
+
 def verify_receipt(*, agent: str, repo: Path, session_id: str = "", task_ids: Iterable[str] = ()) -> dict:
     path = receipt_path(agent, session_id) if session_id else latest_receipt_path(agent)
     try:
@@ -349,8 +396,14 @@ def verify_receipt(*, agent: str, repo: Path, session_id: str = "", task_ids: It
             failures.append("receipt_expired")
     except (TypeError, ValueError):
         failures.append("receipt_expiry_invalid")
-    if receipt.get("harness", {}).get("fingerprint") != harness_snapshot(agent, Path(repo)).get("fingerprint"):
-        failures.append("harness_changed_since_receipt")
+    current_harness = harness_snapshot(agent, Path(repo))
+    if receipt.get("harness", {}).get("fingerprint") != current_harness.get("fingerprint"):
+        # A bare fingerprint mismatch used to hard-fail, which wedged any session
+        # that edited a harness file it had claimed and acknowledged dirty. Forgive
+        # only those acknowledged in-repo edits; every other harness change (unacked
+        # in-repo, or out-of-repo) still forces re-entry.
+        if unforgiven_harness_changes(current_harness, receipt, Path(repo)):
+            failures.append("harness_changed_since_receipt")
     failures.extend(f"unread_urgent:{row['id']}" for row in unread_urgent_messages(agent))
     expected = {str(value) for value in task_ids if value}
     receipt_task = str(receipt.get("task_id") or "")
