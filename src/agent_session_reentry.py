@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
@@ -49,8 +50,27 @@ def _git(repo: Path, *args: str) -> tuple[int, str, str]:
     return _run(["git", "-C", str(repo), *args])
 
 
-def _read_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
+def _read_json(path: Path, *, attempts: int = 5, delay: float = 0.02) -> object:
+    """Read and parse JSON, absorbing a concurrent-writer race.
+
+    A file being rewritten by another process can be momentarily empty, partial,
+    or briefly unopenable, which surfaces as ``JSONDecodeError`` or a transient
+    ``OSError``. Retry a small, bounded number of times so the race settles. A
+    genuinely MISSING file (``FileNotFoundError``) is a real absence, not a race,
+    so it is re-raised immediately; a failure that survives every attempt is
+    re-raised too, preserving fail-closed behaviour.
+    """
+    last_error: Exception | None = None
+    for attempt in range(max(1, attempts)):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            raise
+        except (json.JSONDecodeError, OSError) as exc:
+            last_error = exc
+            if attempt + 1 < attempts:
+                time.sleep(delay)
+    raise last_error  # type: ignore[misc]
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -95,13 +115,20 @@ def receipt_root() -> Path:
     return Path(configured).expanduser() if configured else AGENTREADY_HOME / "session-reentry"
 
 
-def _receipt_name(agent: str, session_id: str) -> str:
+def _receipt_name(agent: str, session_id: str, repo: str | Path | None = None) -> str:
     key = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
+    if repo:
+        # Scope the receipt to the repository. Without a repo component a receipt
+        # issued for one repo would overwrite another repo's receipt at the same
+        # (agent, session) filename, and verify would then fail with
+        # ``receipt_repo_mismatch`` -- locking the session out of the first repo.
+        repo_key = hashlib.sha256(repo_identity(repo).encode("utf-8")).hexdigest()[:12]
+        return f"{agent.lower()}-{repo_key}-{key}.json"
     return f"{agent.lower()}-{key}.json"
 
 
-def receipt_path(agent: str, session_id: str) -> Path:
-    return receipt_root() / agent.lower() / _receipt_name(agent, session_id)
+def receipt_path(agent: str, session_id: str, repo: str | Path | None = None) -> Path:
+    return receipt_root() / agent.lower() / _receipt_name(agent, session_id, repo)
 
 
 def latest_receipt_path(agent: str) -> Path:
@@ -138,10 +165,13 @@ def _trusted_store(store: Path) -> bool:
     return False
 
 
-def unread_urgent_messages(agent: str, coordination_root: Path | None = None) -> list[dict]:
+def unread_urgent_messages(
+    agent: str, coordination_root: Path | None = None, session_id: str = ""
+) -> list[dict]:
     root = Path(coordination_root or COORDINATION_ROOT)
     if not root.is_dir():
         return [{"id": "coordination-unavailable", "precedence": "IMMEDIATE"}]
+    reader_session = str(session_id or "")
     stores = [path for path in root.iterdir() if path.is_dir()]
     if coordination_root is None:
         stores = [path for path in stores if _trusted_store(path)]
@@ -156,6 +186,20 @@ def unread_urgent_messages(agent: str, coordination_root: Path | None = None) ->
                 continue
             recipient = str(message.get("to") or "").lower()
             if recipient not in {agent.lower(), "all"} or bool(message.get("read")):
+                continue
+            # Session-precise. A message addressed to a specific session (``to_session``)
+            # blocks ONLY that session, never a sibling session of the same agent name.
+            # An empty ``to_session`` stays name-wide (prior behaviour), and an empty
+            # reader ``session_id`` also falls back to name-wide, so nothing regresses;
+            # only a proven mismatch is skipped.
+            target_session = str(message.get("to_session") or "")
+            if target_session and reader_session and target_session != reader_session:
+                continue
+            # A session must never fence itself: a message the reader itself sent
+            # (``from_session``) is excluded so an agent broadcasting an urgent flag
+            # does not block its own receipt. Absent field or empty reader = no-op.
+            sender_session = str(message.get("from_session") or "")
+            if sender_session and reader_session and sender_session == reader_session:
                 continue
             precedence = str(message.get("precedence") or "ROUTINE").upper()
             msg_type = str(message.get("type") or "MSG").upper()
@@ -281,7 +325,7 @@ def evaluate_issue(
     for name in REQUIRED_ACKS:
         if not acknowledgements.get(name):
             failures.append(f"missing_ack:{name}")
-    urgent = unread_urgent_messages(agent)
+    urgent = unread_urgent_messages(agent, session_id=session_id)
     failures.extend(f"unread_urgent:{row['id']}" for row in urgent)
     task, task_detail = find_active_task(agent, task_id, repo)
     if task is None:
@@ -322,7 +366,7 @@ def evaluate_issue(
 def issue_receipt(**kwargs) -> dict:
     receipt = evaluate_issue(**kwargs)
     if receipt["status"] == "PASS":
-        path = receipt_path(receipt["agent"], receipt["session_id"])
+        path = receipt_path(receipt["agent"], receipt["session_id"], receipt.get("repo_root"))
         _write_json(path, receipt)
         _write_json(latest_receipt_path(receipt["agent"]), receipt)
         receipt["receipt_path"] = str(path)
@@ -377,7 +421,7 @@ def unforgiven_harness_changes(current: dict, receipt: dict, repo: Path) -> list
 
 
 def verify_receipt(*, agent: str, repo: Path, session_id: str = "", task_ids: Iterable[str] = ()) -> dict:
-    path = receipt_path(agent, session_id) if session_id else latest_receipt_path(agent)
+    path = receipt_path(agent, session_id, repo) if session_id else latest_receipt_path(agent)
     try:
         receipt = _read_json(path)
     except (OSError, ValueError, TypeError) as exc:
@@ -404,7 +448,9 @@ def verify_receipt(*, agent: str, repo: Path, session_id: str = "", task_ids: It
         # in-repo, or out-of-repo) still forces re-entry.
         if unforgiven_harness_changes(current_harness, receipt, Path(repo)):
             failures.append("harness_changed_since_receipt")
-    failures.extend(f"unread_urgent:{row['id']}" for row in unread_urgent_messages(agent))
+    failures.extend(
+        f"unread_urgent:{row['id']}" for row in unread_urgent_messages(agent, session_id=session_id)
+    )
     expected = {str(value) for value in task_ids if value}
     receipt_task = str(receipt.get("task_id") or "")
     if expected and receipt_task not in expected:

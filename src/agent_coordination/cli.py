@@ -152,13 +152,19 @@ def cmd_task_claim(a: argparse.Namespace) -> int:
         _print_conflicts(conflicts)
         return 2
 
+    # Union the newly-claimed paths with any already on the task, deduped and
+    # order-stable. Replacing the set would silently drop previously-claimed paths,
+    # so a later commit touching them would be refused as "no task covers all
+    # staged paths." Existing paths come first to preserve their original order.
+    union_paths = list(dict.fromkeys([*pth.to_path_list(task.get("paths")), *claim_paths]))
+
     task["agent"] = a.agent
     task["status"] = "claimed"
-    task["paths"] = claim_paths
+    task["paths"] = union_paths
     tk.write_task(repo, task)
     lk.set_locks(repo, task)
     ev.add_event(repo, a.task_id, "task_claimed", agent=a.agent, message=f"Claimed by {a.agent}",
-                 data={"paths": claim_paths})
+                 data={"paths": union_paths})
     print(f"Agent task claimed: {a.task_id} by {a.agent}")
     return 0
 

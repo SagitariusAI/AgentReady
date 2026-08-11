@@ -31,4 +31,4 @@ These rules apply to people and automated development agents working in this rep
 - Do not describe a build as release-ready while a required check is failing or its evidence belongs to another
   commit.
 
-AgentReady is owned and maintained by Sagittarius AI and is licensed under the Apache License 2.0.
+AgentReady is owned and maintained by SagitariusAI and is licensed under the Apache License 2.0.

@@ -202,4 +202,4 @@ See [Configuration](CONFIGURATION.md) before relocating runtime state and [Unins
 installation that has active hooks or records. The [User manual](USER_MANUAL.md) covers task, memory-receipt,
 capture, and release workflows.
 
-AgentReady is owned and maintained by Sagittarius AI. Project owner: Alex Burca.
+AgentReady is owned and maintained by SagitariusAI. Project owner: Alex Burca.

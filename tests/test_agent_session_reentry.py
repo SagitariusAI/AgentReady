@@ -33,7 +33,7 @@ def _task(repo: Path) -> dict:
 
 
 def _green(monkeypatch, repo: Path) -> None:
-    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent: [])
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [])
     monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (_task(repo), "ok"))
     monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "PASS", "mode": "local-only"})
     monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
@@ -65,7 +65,7 @@ def test_dirty_paths_preserve_porcelain_leading_space(repo: Path) -> None:
 
 
 def test_issue_blocks_on_warning_and_source_divergence(monkeypatch, repo: Path) -> None:
-    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent: [{"id": "stop"}])
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [{"id": "stop"}])
     monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (_task(repo), "ok"))
     monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "FAIL"})
     monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
@@ -169,3 +169,144 @@ def test_receipt_contains_hashes_not_message_or_source_content(monkeypatch, repo
     encoded = json.dumps(result)
     assert "base\\n" not in encoded
     assert "body" not in encoded
+
+
+def _urgent_message(tmp_path: Path, **fields) -> Path:
+    message = tmp_path / "demo" / "messages" / f"{fields.get('id', 'm')}.json"
+    message.parent.mkdir(parents=True, exist_ok=True)
+    body = {"to": "claude", "read": False, "precedence": "IMMEDIATE", "type": "MSG"}
+    body.update(fields)
+    message.write_text(json.dumps(body), encoding="utf-8")
+    return message
+
+
+def test_urgent_to_specific_session_blocks_only_that_session(tmp_path: Path) -> None:
+    _urgent_message(tmp_path, id="directed", to_session="alpha", subject="hold")
+    # The addressed session sees (and is blocked by) the flag.
+    mine = reentry.unread_urgent_messages("claude", tmp_path, session_id="alpha")
+    assert [row["id"] for row in mine] == ["directed"]
+    # A sibling session of the same agent name is NOT blocked by it.
+    peer = reentry.unread_urgent_messages("claude", tmp_path, session_id="beta")
+    assert peer == []
+    # An empty reader session_id stays name-wide (no regression): still sees it.
+    namewide = reentry.unread_urgent_messages("claude", tmp_path, session_id="")
+    assert [row["id"] for row in namewide] == ["directed"]
+
+
+def test_urgent_without_to_session_stays_name_wide(tmp_path: Path) -> None:
+    _urgent_message(tmp_path, id="broadcast")
+    for session in ("alpha", "beta", ""):
+        rows = reentry.unread_urgent_messages("claude", tmp_path, session_id=session)
+        assert [row["id"] for row in rows] == ["broadcast"]
+
+
+def test_session_does_not_fence_its_own_broadcast(tmp_path: Path) -> None:
+    # A message the reader itself sent (from_session == its own session) must not
+    # block its own receipt; a message from a different session still does.
+    _urgent_message(tmp_path, id="self", from_session="alpha")
+    assert reentry.unread_urgent_messages("claude", tmp_path, session_id="alpha") == []
+    _urgent_message(tmp_path, id="other", from_session="beta")
+    ids = {row["id"] for row in reentry.unread_urgent_messages("claude", tmp_path, session_id="alpha")}
+    assert ids == {"other"}
+
+
+def test_receipt_path_is_repo_scoped_no_cross_repo_overwrite(tmp_path: Path) -> None:
+    monkey_root = tmp_path / "receipts"
+    import os
+    os.environ["AGENTREADY_SESSION_REENTRY_DIR"] = str(monkey_root)
+    try:
+        one = reentry.receipt_path("claude", "session", tmp_path / "repo-one")
+        two = reentry.receipt_path("claude", "session", tmp_path / "repo-two")
+        # Same agent + same session but different repos must not collide.
+        assert one != two
+        assert one.name != two.name
+        # No repo argument keeps the legacy (un-scoped) name for backward safety.
+        legacy = reentry.receipt_path("claude", "session")
+        assert legacy.name == "claude-" + __import__("hashlib").sha256(
+            b"session").hexdigest()[:16] + ".json"
+        assert legacy.name != one.name
+    finally:
+        del os.environ["AGENTREADY_SESSION_REENTRY_DIR"]
+
+
+def test_issue_then_verify_survives_a_second_repo_issue(monkeypatch, tmp_path: Path) -> None:
+    # Issuing a receipt for a SECOND repo in the same session must not clobber the
+    # first repo's receipt (the cross-repo overwrite lockout that Fix C closes).
+    monkeypatch.setenv("AGENTREADY_SESSION_REENTRY_DIR", str(tmp_path / "receipts"))
+    repo_one = _init_repo(tmp_path / "one")
+    repo_two = _init_repo(tmp_path / "two")
+
+    def _green_for(target: Path) -> None:
+        monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _a, **_kw: [])
+        monkeypatch.setattr(reentry, "find_active_task",
+                            lambda _a, _t, _r: ({"id": "t1", "agent": "claude", "status": "in_progress",
+                                                 "repo_root": str(target), "paths": ["src"]}, "ok"))
+        monkeypatch.setattr(reentry, "source_control_status",
+                            lambda _r: {"status": "PASS", "mode": "local-only"})
+        monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
+
+    _green_for(repo_one)
+    assert reentry.issue_receipt(
+        agent="claude", repo=repo_one, session_id="s", task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )["status"] == "PASS"
+    _green_for(repo_two)
+    assert reentry.issue_receipt(
+        agent="claude", repo=repo_two, session_id="s", task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )["status"] == "PASS"
+    # The first repo's receipt is still intact and verifies.
+    _green_for(repo_one)
+    assert reentry.verify_receipt(agent="claude", repo=repo_one, session_id="s")["status"] == "PASS"
+
+
+def _init_repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+    (path / "tracked.txt").write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "base"],
+        cwd=path, check=True, capture_output=True,
+    )
+    return path
+
+
+def test_read_json_retries_then_succeeds_on_transient_decode_error(tmp_path: Path) -> None:
+    target = tmp_path / "flaky.json"
+    target.write_text("{\"ok\": true}", encoding="utf-8")
+    calls = {"n": 0}
+    real_read_text = Path.read_text
+
+    def flaky_read_text(self, *args, **kwargs):
+        if self == target and calls["n"] < 2:
+            calls["n"] += 1
+            return ""  # empty content -> JSONDecodeError, simulating a mid-write read
+        return real_read_text(self, *args, **kwargs)
+
+    original_sleep = reentry.time.sleep
+    reentry.time.sleep = lambda _s: None
+    Path.read_text = flaky_read_text
+    try:
+        assert reentry._read_json(target) == {"ok": True}
+        assert calls["n"] == 2
+    finally:
+        Path.read_text = real_read_text
+        reentry.time.sleep = original_sleep
+
+
+def test_read_json_missing_file_raises_immediately(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        reentry._read_json(tmp_path / "does-not-exist.json")
+
+
+def test_read_json_raises_after_exhausting_attempts(tmp_path: Path) -> None:
+    target = tmp_path / "corrupt.json"
+    target.write_text("not json at all", encoding="utf-8")
+    original_sleep = reentry.time.sleep
+    reentry.time.sleep = lambda _s: None
+    try:
+        with pytest.raises(json.JSONDecodeError):
+            reentry._read_json(target, attempts=3)
+    finally:
+        reentry.time.sleep = original_sleep

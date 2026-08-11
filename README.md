@@ -1,7 +1,46 @@
 # AgentReady
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![CI](https://github.com/SagitariusAI/AgentReady/actions/workflows/ci.yml/badge.svg)](https://github.com/SagitariusAI/AgentReady/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/SagitariusAI/AgentReady?sort=semver)](https://github.com/SagitariusAI/AgentReady/releases)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+
+> Keep multiple AI coding agents from committing over each other, clobbering a dirty tree, or calling work
+> "done" while it's still red — locally, with no hosted service.
+
 AgentReady is a local-first toolkit for coordinating and verifying software work performed by people and AI-assisted
 development tools. It helps a team maintain an auditable workflow without requiring a hosted service.
+
+## What it solves
+
+- **Two agents editing one tree.** Task claims and path-conflict checks surface the collision before one agent's
+  commit lands on top of another's uncommitted work.
+- **An agent resuming after a context reset with stale instructions.** The re-entry gate can hold a frontier agent
+  read-only until it reconciles urgent instructions, one active task, dirty state, and source authority.
+- **"Done" claimed on a red gate.** A PASS/WARN/FAIL release scorecard reports the real state of tests, security,
+  and packaging, so a "ready" claim can be checked instead of trusted.
+- **No audit trail.** Local receipts record who claimed which lane, which paths and memory were touched, and when —
+  inspectable on disk, with no hosted dashboard required.
+
+## At a glance
+
+Windows 10/11 · local-first · zero runtime dependencies (core) · no telemetry · Apache-2.0.
+
+## What it looks like
+
+```text
+$ agent-release-scorecard --repo .
+Agent release scorecard: PASS (0 fail, 0 warn)
+
+| Status | Area              | Message                                                  |
+| ------ | ----------------- | -------------------------------------------------------- |
+| PASS   | Git               | Exact committed source tree is clean.                    |
+| PASS   | Security          | Security manifest is PASS.                                |
+| PASS   | Publication guard | Privacy and persistence guard is PASS and bound to HEAD. |
+| PASS   | Packaging         | Archive digest, inventory, guard, and Git head agree.    |
+| PASS   | Release readiness | Canonical public readiness is PASS and bound to HEAD.    |
+| PASS   | Supply chain      | Resolved dependency lock is present.                     |
+```
 
 AgentReady provides:
 
@@ -43,7 +82,7 @@ complying with applicable law and third-party terms.
 See the [complete prerequisite and third-party download list](docs/PREREQUISITES.md) before installing companion
 memory, graph, local-model, or container tools.
 
-## Install for regular use
+## Verified install
 
 Obtain AgentReady from its official release source. Before running any included script, compare the downloaded
 archive's SHA-256 with the checksum published alongside that release and inspect its source manifest:

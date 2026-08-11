@@ -2,7 +2,7 @@
 
 Effective date: July 30, 2026
 
-This User Agreement applies to the official AgentReady software and documentation distributed by Sagittarius AI
+This User Agreement applies to the official AgentReady software and documentation distributed by SagitariusAI
 through the `SagitariusAI/AgentReady` repository. By downloading, installing, copying, accessing, or using AgentReady,
 you acknowledge and agree to this Agreement. If you do not agree, do not download, install, or use AgentReady.
 
@@ -18,7 +18,7 @@ source code, the Apache License 2.0 controls.
 AgentReady is provided on an **"AS IS"** and **"AS AVAILABLE"** basis, with all faults and without promises,
 representations, guarantees, conditions, service levels, or warranties of any kind.
 
-To the maximum extent permitted by applicable law, Sagittarius AI, the project owner, and all contributors disclaim
+To the maximum extent permitted by applicable law, SagitariusAI, the project owner, and all contributors disclaim
 all express, implied, statutory, and other warranties, including warranties of title, non-infringement,
 merchantability, fitness for a particular purpose, accuracy, reliability, availability, security, compatibility,
 performance, results, and freedom from errors, defects, harmful components, interruption, or data loss.
@@ -55,14 +55,14 @@ requires qualified human review.
 ## 4. Third-party software and services
 
 AgentReady can be used with separately supplied tools, models, packages, repositories, network services, and
-platforms. Those components are not controlled by Sagittarius AI and are governed by their own licenses, terms,
-privacy practices, security practices, availability, and fees. Sagittarius AI does not endorse, warrant, support, or
+platforms. Those components are not controlled by SagitariusAI and are governed by their own licenses, terms,
+privacy practices, security practices, availability, and fees. SagitariusAI does not endorse, warrant, support, or
 assume responsibility for third-party components or for data sent to them.
 
 ## 5. Limitation of liability
 
 The limitations in Sections 7 and 8 of the Apache License 2.0 apply. In addition, to the maximum extent permitted by
-applicable law, Sagittarius AI, the project owner, and contributors will not be liable under any legal theory for any
+applicable law, SagitariusAI, the project owner, and contributors will not be liable under any legal theory for any
 direct, indirect, incidental, special, exemplary, punitive, or consequential loss or damage arising from or related
 to AgentReady or its use or inability to be used. This includes loss or corruption of data, credentials, models,
 repositories, systems, revenue, profits, business opportunities, goodwill, privacy, security, or operational
@@ -76,7 +76,7 @@ allow to be excluded.
 
 No purchase, support relationship, maintenance obligation, service commitment, fiduciary duty, or professional
 relationship is created by publication, download, installation, use, an issue, a contribution, or other
-communication. Sagittarius AI may change, suspend, or discontinue the project or any distribution channel at any
+communication. SagitariusAI may change, suspend, or discontinue the project or any distribution channel at any
 time, with or without notice, and makes no promise to preserve compatibility or availability.
 
 ## 7. General terms

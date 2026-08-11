@@ -4,7 +4,7 @@ AgentReady is a local-first command-line toolkit for coordinating, capturing, an
 operated by a person, a deterministic local model, a frontier model, or ordinary automation. The same public commands
 and evidence contracts apply to every operator.
 
-AgentReady is owned and maintained by Sagittarius AI. Project owner: Alex Burca.
+AgentReady is owned and maintained by SagitariusAI. Project owner: Alex Burca.
 
 ## 1. Operating model
 
@@ -409,4 +409,4 @@ Remove runtime directories only after resolving each exact path and verifying th
 does not silently delete capture databases, coordination ledgers, reports, or repositories. See
 [Uninstall](UNINSTALL.md) for the complete sequence.
 
-Copyright 2026 Sagittarius AI. Licensed under the Apache License 2.0.
+Copyright 2026 SagitariusAI. Licensed under the Apache License 2.0.

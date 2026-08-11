@@ -2,16 +2,16 @@
 
 Effective date: July 30, 2026
 
-This notice describes the privacy boundary of the official AgentReady software distributed by Sagittarius AI. It
+This notice describes the privacy boundary of the official AgentReady software distributed by SagitariusAI. It
 does not govern GitHub, package indexes, model providers, third-party prerequisites, repositories you operate, or
 other services that have their own privacy terms.
 
 ## Local operation
 
 The AgentReady public core is designed to operate on repositories and state under the user's control. It does not
-include a Sagittarius AI account service, hosted control plane, advertising system, or Sagittarius AI telemetry
+include a SagitariusAI account service, hosted control plane, advertising system, or SagitariusAI telemetry
 endpoint. AgentReady does not intentionally transmit repository activity, captured conversations, local reports, or
-runtime databases to Sagittarius AI.
+runtime databases to SagitariusAI.
 
 AgentReady can create local task records, reports, logs, capture records, configuration, and databases after the user
 enables or runs relevant features. The user controls the machine, storage location, access, retention, backup,
@@ -24,7 +24,7 @@ Git remote, or configures an optional third-party tool, model, MCP server, packa
 integration. Optional Ollama summarization communicates with the user-configured local Ollama service. A third-party
 component may collect or transmit data under its own configuration and privacy terms.
 
-Sagittarius AI does not control and is not responsible for third-party data practices. Before enabling an
+SagitariusAI does not control and is not responsible for third-party data practices. Before enabling an
 integration, review its destination, configuration, permissions, privacy terms, retention, and security.
 
 ## User responsibility

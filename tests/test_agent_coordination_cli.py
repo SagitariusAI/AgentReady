@@ -255,3 +255,28 @@ def test_worktree_create(repo):
     assert task["status"] == "in_progress"
     assert task["branch"] == f"agent/claude/{task_id}"
     assert (_store(repo) / "worktrees" / f"{task_id}.json").exists()
+
+
+def test_task_claim_unions_paths_instead_of_replacing(repo):
+    # task-start already claims src/unit_a.py; claiming a NEW path must UNION, not
+    # replace -- otherwise the first path is silently dropped and a later commit
+    # touching it is refused as "no task covers all staged paths."
+    assert _start(repo, paths="src/unit_a.py") == 0
+    task_id = _only_task(repo)["id"]
+    assert cli.main([
+        "task-claim", "--repo", str(repo), "--task-id", task_id,
+        "--agent", "claude", "--paths", "src/unit_b.py",
+    ]) == 0
+    paths = _only_task(repo)["paths"]
+    assert paths == ["src/unit_a.py", "src/unit_b.py"]
+
+
+def test_task_claim_union_is_deduped_and_order_stable(repo):
+    assert _start(repo, paths="src/unit_a.py") == 0
+    task_id = _only_task(repo)["id"]
+    # Re-claiming an already-present path plus a new one keeps order and de-dupes.
+    assert cli.main([
+        "task-claim", "--repo", str(repo), "--task-id", task_id,
+        "--agent", "claude", "--paths", "src/unit_a.py,src/unit_c.py",
+    ]) == 0
+    assert _only_task(repo)["paths"] == ["src/unit_a.py", "src/unit_c.py"]

@@ -3,7 +3,7 @@
 AgentReady bootstraps a portable operating contract into each target
 repository's `AGENTS.md`. The contract is intentionally vendor-neutral: it can
 guide Claude, Codex, or another capable development agent without depending on
-a Sagittarius AI network, repository, account, or private policy map.
+a SagitariusAI network, repository, account, or private policy map.
 
 The generated prompt tells an agent to:
 
