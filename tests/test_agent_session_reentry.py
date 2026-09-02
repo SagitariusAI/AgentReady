@@ -64,6 +64,101 @@ def test_dirty_paths_preserve_porcelain_leading_space(repo: Path) -> None:
     assert reentry.dirty_paths(repo) == ["tracked.txt"]
 
 
+def _linked_worktree(repo: Path, path: Path, branch: str = "agent/test/task-worktree") -> Path:
+    subprocess.run(
+        ["git", "worktree", "add", "-b", branch, str(path)],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    return path
+
+
+def test_issue_inspects_claimed_worktree_instead_of_dirty_canonical_checkout(
+    monkeypatch, tmp_path: Path, repo: Path
+) -> None:
+    worktree = _linked_worktree(repo, tmp_path / "task-worktree")
+    task = {**_task(repo), "worktree": str(worktree), "branch": "agent/test/task-worktree"}
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [])
+    monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (task, "ok"))
+    monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "PASS", "mode": "local-only"})
+    monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
+    (repo / "other-lane.txt").write_text("unrelated\n", encoding="utf-8")
+
+    result = reentry.evaluate_issue(
+        agent="claude",
+        repo=repo,
+        session_id="s1",
+        task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )
+
+    assert result["status"] == "PASS"
+    assert Path(result["checkout_root"]).resolve() == worktree.resolve()
+    assert result["checkout_identity"] == reentry.repo_identity(repo)
+    assert result["dirty_paths"] == []
+
+
+def test_issue_blocks_unclaimed_dirt_in_claimed_worktree(monkeypatch, tmp_path: Path, repo: Path) -> None:
+    worktree = _linked_worktree(repo, tmp_path / "task-worktree")
+    task = {**_task(repo), "worktree": str(worktree), "branch": "agent/test/task-worktree"}
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [])
+    monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (task, "ok"))
+    monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "PASS", "mode": "local-only"})
+    monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
+    (worktree / "outside.txt").write_text("unclaimed\n", encoding="utf-8")
+
+    result = reentry.evaluate_issue(
+        agent="claude",
+        repo=repo,
+        session_id="s1",
+        task_id="t1",
+        acknowledge_dirty=True,
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )
+
+    assert result["status"] == "BLOCKED"
+    assert "dirty_unclaimed:outside.txt" in result["failures"]
+
+
+@pytest.mark.parametrize(
+    ("worktree_kind", "expected_failure"),
+    [
+        ("missing", "task_worktree_unavailable"),
+        ("foreign", "task_worktree_repo_mismatch"),
+        ("wrong-branch", "task_worktree_branch_mismatch"),
+    ],
+)
+def test_issue_refuses_unattested_task_worktree(
+    monkeypatch, tmp_path: Path, repo: Path, worktree_kind: str, expected_failure: str
+) -> None:
+    branch = "agent/test/task-worktree"
+    if worktree_kind == "missing":
+        worktree = tmp_path / "missing-worktree"
+    elif worktree_kind == "foreign":
+        worktree = tmp_path / "foreign"
+        subprocess.run(["git", "init", str(worktree)], check=True, capture_output=True)
+    else:
+        worktree = _linked_worktree(repo, tmp_path / "task-worktree", branch=branch)
+        branch = "agent/test/different-branch"
+    task = {**_task(repo), "worktree": str(worktree), "branch": branch}
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [])
+    monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (task, "ok"))
+    monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "PASS", "mode": "local-only"})
+    monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
+
+    result = reentry.evaluate_issue(
+        agent="claude",
+        repo=repo,
+        session_id="s1",
+        task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )
+
+    assert result["status"] == "BLOCKED"
+    assert expected_failure in result["failures"]
+
+
 def test_issue_blocks_on_warning_and_source_divergence(monkeypatch, repo: Path) -> None:
     monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [{"id": "stop"}])
     monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (_task(repo), "ok"))
@@ -91,6 +186,31 @@ def test_issue_and_verify_detect_harness_change(monkeypatch, tmp_path: Path, rep
     assert "harness_changed_since_receipt" in reentry.verify_receipt(
         agent="claude", repo=repo, session_id="session"
     )["failures"]
+
+
+def test_verify_refuses_task_worktree_changed_after_receipt(monkeypatch, tmp_path: Path, repo: Path) -> None:
+    monkeypatch.setenv("AGENTREADY_SESSION_REENTRY_DIR", str(tmp_path / "receipts"))
+    first = _linked_worktree(repo, tmp_path / "first-worktree", branch="agent/test/first")
+    second = _linked_worktree(repo, tmp_path / "second-worktree", branch="agent/test/second")
+    task = {**_task(repo), "worktree": str(first), "branch": "agent/test/first"}
+    monkeypatch.setattr(reentry, "unread_urgent_messages", lambda _agent, **_kw: [])
+    monkeypatch.setattr(reentry, "find_active_task", lambda _a, _t, _r: (task, "ok"))
+    monkeypatch.setattr(reentry, "source_control_status", lambda _r: {"status": "PASS", "mode": "local-only"})
+    monkeypatch.setattr(reentry, "harness_snapshot", lambda _a, _r: {"fingerprint": "fp"})
+    result = reentry.issue_receipt(
+        agent="claude",
+        repo=repo,
+        session_id="session",
+        task_id="t1",
+        acknowledgements={name: True for name in reentry.REQUIRED_ACKS},
+    )
+    assert result["status"] == "PASS"
+
+    task.update(worktree=str(second), branch="agent/test/second")
+    verification = reentry.verify_receipt(agent="claude", repo=repo, session_id="session")
+
+    assert verification["status"] == "BLOCKED"
+    assert "task_worktree_changed_since_receipt" in verification["failures"]
 
 
 def test_acked_dirty_in_repo_harness_edit_is_forgiven_but_unacked_still_blocks(

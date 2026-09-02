@@ -18,7 +18,7 @@ session or context reset; or whenever behavior appears degraded.
 5. Explicitly acknowledge the operating rules, negative results, and source
    authority.
 6. Issue a short-lived receipt bound to the agent, session, task, repository,
-   harness fingerprint, and expiry.
+   exact task checkout, harness fingerprint, and expiry.
 
 ```powershell
 $env:AGENTREADY_AGENT = "claude"
@@ -38,6 +38,13 @@ Add `--ack-dirty` only after inspecting dirty paths and confirming that the
 active task claims every one. A receipt is never issued when an urgent stop
 remains unread, ownership is ambiguous, dirty work is unclaimed, the configured
 authority remote differs from local HEAD, or the harness changed.
+
+When the active task records a linked Git worktree, re-entry inspects that
+worktree rather than the canonical checkout. The recorded path must be absolute,
+available, the Git top level, attached to the same common repository identity,
+and on the task's recorded branch. Missing, foreign, nested, or branch-mismatched
+worktrees fail closed. The receipt records the selected checkout and verification
+rejects a task that later points at a different worktree.
 
 Without `AGENTREADY_AUTHORITY_REMOTE`, the source check is explicitly
 `local-only`. This supports sovereign/offline work without pretending that a

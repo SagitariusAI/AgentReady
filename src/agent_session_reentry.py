@@ -250,6 +250,42 @@ def find_active_task(agent: str, task_id: str, repo: Path) -> tuple[dict | None,
     return task, "ok"
 
 
+def _local_task_checkout(task: dict | None, repo: Path) -> tuple[Path | None, list[str]]:
+    """Return the exact local checkout owned by the task, or fail closed.
+
+    A task may identify the canonical repository while its writes happen in a
+    linked worktree.  The worktree must be an absolute, available Git top level
+    with the same common-directory identity and recorded branch as ``repo``.
+    Tasks created before worktree recording intentionally use ``repo``.
+    """
+    if task is None:
+        return repo, []
+    raw = str(task.get("worktree") or "").strip()
+    if not raw:
+        return repo, []
+    requested = Path(raw).expanduser()
+    if not requested.is_absolute():
+        return None, ["task_worktree_not_absolute"]
+    requested = requested.resolve(strict=False)
+    if not requested.is_dir():
+        return None, ["task_worktree_unavailable"]
+    checkout = nearest_git_repo(requested)
+    if checkout is None:
+        return None, ["task_worktree_not_git_repository"]
+    if checkout.resolve(strict=False) != requested:
+        return None, ["task_worktree_top_mismatch"]
+    if repo_identity(checkout) != repo_identity(repo):
+        return None, ["task_worktree_repo_mismatch"]
+    expected_branch = str(task.get("branch") or "").strip()
+    if expected_branch:
+        rc, branch, detail = _git(checkout, "branch", "--show-current")
+        if rc != 0:
+            return None, [f"task_worktree_branch_unavailable:{detail or 'git_failed'}"]
+        if branch != expected_branch:
+            return None, ["task_worktree_branch_mismatch"]
+    return checkout, []
+
+
 def dirty_paths(repo: Path) -> list[str]:
     try:
         result = subprocess.run(
@@ -330,11 +366,14 @@ def evaluate_issue(
     task, task_detail = find_active_task(agent, task_id, repo)
     if task is None:
         failures.append(task_detail)
-    try:
-        dirty = dirty_paths(repo)
-    except RuntimeError as exc:
-        dirty = []
-        failures.append(f"dirty_state_unavailable:{exc}")
+    checkout, checkout_failures = _local_task_checkout(task, repo)
+    failures.extend(checkout_failures)
+    dirty: list[str] = []
+    if checkout is not None:
+        try:
+            dirty = dirty_paths(checkout)
+        except RuntimeError as exc:
+            failures.append(f"dirty_state_unavailable:{exc}")
     uncovered = [path for path in dirty if task is None or not _covered(path, task.get("paths") or [])]
     failures.extend(f"dirty_unclaimed:{path}" for path in uncovered)
     if dirty and not uncovered and not acknowledge_dirty:
@@ -351,6 +390,8 @@ def evaluate_issue(
         "task_id": task_id,
         "repo_root": str(repo),
         "repo_identity": repo_identity(repo),
+        "checkout_root": str(checkout) if checkout is not None else str(task.get("worktree") or "") if task else "",
+        "checkout_identity": repo_identity(checkout) if checkout is not None else "",
         "issued_at": _iso(now),
         "expires_at": _iso(now + timedelta(minutes=max(1, ttl_minutes))),
         "acknowledgements": acknowledgements,
@@ -458,6 +499,13 @@ def verify_receipt(*, agent: str, repo: Path, session_id: str = "", task_ids: It
     task, detail = find_active_task(agent, receipt_task, Path(repo))
     if task is None:
         failures.append(detail)
+    else:
+        checkout, checkout_failures = _local_task_checkout(task, Path(repo))
+        failures.extend(checkout_failures)
+        expected_checkout = str(receipt.get("checkout_root") or "")
+        if checkout is not None and expected_checkout:
+            if checkout.resolve(strict=False) != Path(expected_checkout).resolve(strict=False):
+                failures.append("task_worktree_changed_since_receipt")
     return {"status": "PASS" if not failures else "BLOCKED", "failures": list(dict.fromkeys(failures)), "path": str(path)}
 
 
