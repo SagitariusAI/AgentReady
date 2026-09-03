@@ -88,7 +88,9 @@ before the repository gate. Gate commands are resolved after setup, so
 setup failure aborts the gate. A newly-created worktree is removed and no task,
 lock, event, or worktree pointer is recorded; an existing verified worktree is
 preserved for diagnosis but is not admitted. Worktree setup refusal exits with
-code 7.
+code 7. Setup and gate output is decoded as UTF-8 with undecodable bytes kept as
+visible backslash escapes. Native tools therefore cannot crash admission merely
+because their output contains a byte that the Windows legacy code page rejects.
 
 The ``.agentready`` directory is a mixed namespace, not disposable runtime
 state. AgentReady excludes only the generated

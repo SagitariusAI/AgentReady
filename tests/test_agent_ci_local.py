@@ -265,6 +265,27 @@ def test_write_marker_suppressed_by_env(tmp_path, monkeypatch):
     assert not (tmp_path / ".agentready" / "gate_status.json").exists()
 
 
+def test_run_steps_preserves_invalid_utf8_bytes_without_crashing(tmp_path):
+    result = ci.run_steps(
+        tmp_path,
+        [
+            {
+                "name": "native-build-output",
+                "argv": [
+                    sys.executable,
+                    "-c",
+                    "import sys; sys.stdout.buffer.write(b'before\\x90after\\n')",
+                ],
+            }
+        ],
+        echo=False,
+    )
+
+    assert result["failures"] == []
+    assert "before\\x90after" in result["log"]
+    assert "EXIT native-build-output = 0" in result["log"]
+
+
 def test_run_no_entrypoints(tmp_path, capsys):
     (tmp_path / "README.md").write_text("x", encoding="utf-8")
     result = ci.run(tmp_path, echo=False, write_outputs=False)

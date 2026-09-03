@@ -199,7 +199,18 @@ def run_steps(repo: Path, steps: list[dict], *, echo: bool = True) -> dict:
         if s.get("env"):
             env.update(s["env"])
         try:
-            proc = subprocess.run(s["argv"], cwd=str(repo), env=env, capture_output=True, text=True)
+            proc = subprocess.run(
+                s["argv"],
+                cwd=str(repo),
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                # Native tools may mix UTF-8 with arbitrary status bytes. Keep
+                # those bytes visible without allowing the Windows locale codec
+                # to turn a healthy command into a setup-runner exception.
+                errors="backslashreplace",
+            )
             out = (proc.stdout or "") + (proc.stderr or "")
             for line in out.splitlines():
                 emit(line)
