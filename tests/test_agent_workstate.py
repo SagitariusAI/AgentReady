@@ -60,6 +60,21 @@ def test_green_marker_at_head_allows_complete(tmp_path):
     assert ws.tree_state(repo)["clean"] is True
 
 
+def test_tracked_agentready_contract_remains_visible_as_dirty(tmp_path):
+    repo = _repo(tmp_path)
+    contract = Path(repo) / ".agentready" / "ci.json"
+    contract.parent.mkdir()
+    contract.write_text('{"version": 1}\n', encoding="utf-8")
+    subprocess.run(["git", "-C", repo, "add", str(contract)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", repo, "commit", "-qm", "contract"], check=True)
+
+    contract.write_text('{"version": 2}\n', encoding="utf-8")
+    state = ws.tree_state(repo)
+
+    assert state["clean"] is False
+    assert state["files"] == [".agentready/ci.json"]
+
+
 def test_stale_or_failed_gate_blocks_complete(tmp_path):
     repo = _repo(tmp_path)
     _commit(repo)

@@ -42,7 +42,36 @@ def test_ensure_state_writes_pointer(repo):
 def test_ensure_state_registers_git_exclude(repo):
     store.ensure_state(repo)
     exclude = (repo / ".git" / "info" / "exclude").read_text(encoding="utf-8")
-    assert ".agent-state/" in exclude and ".agentready/" in exclude
+    assert ".agent-state/" in exclude
+    assert ".agentready/gate_status.json" in exclude
+    assert ".agentready/" not in exclude.splitlines()
+
+    contract = repo / ".agentready" / "ci.json"
+    contract.parent.mkdir(exist_ok=True)
+    contract.write_text("{}\n", encoding="utf-8")
+    marker = contract.parent / "gate_status.json"
+    marker.write_text("{}\n", encoding="utf-8")
+    assert subprocess.run(
+        ["git", "-C", str(repo), "check-ignore", "--quiet", str(contract)], check=False
+    ).returncode == 1
+    assert subprocess.run(
+        ["git", "-C", str(repo), "check-ignore", "--quiet", str(marker)], check=False
+    ).returncode == 0
+
+
+def test_ensure_state_migrates_legacy_agentready_directory_exclude(repo):
+    exclude_path = repo / ".git" / "info" / "exclude"
+    exclude_path.write_text(
+        "# keep this custom rule\ncustom.cache\n.agentready/\n", encoding="utf-8"
+    )
+
+    store.ensure_state(repo)
+    store.ensure_state(repo)
+
+    lines = exclude_path.read_text(encoding="utf-8").splitlines()
+    assert "custom.cache" in lines
+    assert ".agentready/" not in lines
+    assert lines.count(".agentready/gate_status.json") == 1
 
 
 def test_ensure_state_is_idempotent(repo):

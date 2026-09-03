@@ -5,13 +5,27 @@
 """Public support for store."""
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 from agent_coordination.common import now_stamp, write_json
-from agent_runtime_paths import STORE_SUBDIRS, repo_name, resolve_repo, state_root, worktree_root
+from agent_runtime_paths import (
+    AGENTREADY_RUNTIME_PATHS,
+    STORE_SUBDIRS,
+    repo_name,
+    resolve_repo,
+    state_root,
+    worktree_root,
+)
 
-_LOCAL_EXCLUDE_PATTERNS = (".agent-state/", ".agent-reports/", ".agentready/")
+_LOCAL_EXCLUDE_PATTERNS = (
+    ".agent-state/",
+    ".agent-reports/",
+    *sorted(AGENTREADY_RUNTIME_PATHS),
+)
+_LEGACY_LOCAL_EXCLUDE_PATTERNS = frozenset({".agentready/"})
 _EXCLUDE_HEADER = "# AgentReady local coordination/report state (machine-local, do not commit)"
 
 
@@ -31,24 +45,39 @@ def _git_dir(repo: Path) -> Path | None:
 
 
 def add_local_git_exclude(repo: Path) -> None:
-    """Append AgentReady's machine-local dirs to .git/info/exclude (local, untracked — never a tracked file)."""
+    """Register only AgentReady's machine-local paths in Git's local exclude.
+
+    Older releases excluded all of ``.agentready/``, hiding repository-owned
+    declarations such as ``ci.json``. Every call migrates that legacy rule.
+    """
     git_dir = _git_dir(repo)
     if not git_dir:
         return
     info_dir = git_dir / "info"
     info_dir.mkdir(parents=True, exist_ok=True)
     exclude_path = info_dir / "exclude"
-    existing = []
+    lines: list[str] = []
     if exclude_path.exists():
-        existing = [line.strip() for line in exclude_path.read_text(encoding="utf-8", errors="replace").splitlines()]
-    to_add = [p for p in _LOCAL_EXCLUDE_PATTERNS if p not in existing]
-    if not to_add:
+        lines = exclude_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    migrated = [
+        line for line in lines if line.strip() not in _LEGACY_LOCAL_EXCLUDE_PATTERNS
+    ]
+    existing = {line.strip() for line in migrated}
+    to_add = [pattern for pattern in _LOCAL_EXCLUDE_PATTERNS if pattern not in existing]
+    if migrated == lines and not to_add:
         return
-    with exclude_path.open("a", encoding="utf-8") as handle:
-        if _EXCLUDE_HEADER not in existing:
-            handle.write(_EXCLUDE_HEADER + "\n")
-        for pattern in to_add:
-            handle.write(pattern + "\n")
+    if to_add and _EXCLUDE_HEADER not in existing:
+        migrated.append(_EXCLUDE_HEADER)
+    migrated.extend(to_add)
+
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=info_dir, delete=False, newline="\n"
+    ) as handle:
+        temporary = Path(handle.name)
+        handle.write("\n".join(migrated) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, exclude_path)
 
 
 _STATE_README = """# Agent State

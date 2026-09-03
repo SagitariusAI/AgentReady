@@ -38,6 +38,19 @@ STORE_SUBDIRS = (
     "decisions", "locks", "versions", "reviews", "worktrees",
 )
 
+# Repository-owned declarations and machine-local receipts share the
+# ``.agentready`` namespace. Keep this runtime set exact so tracked contracts
+# such as ``ci.json`` remain visible to Git and work-state gates.
+AGENTREADY_RUNTIME_PATHS = frozenset({".agentready/gate_status.json"})
+
+
+def is_agentready_runtime_path(path: str | Path) -> bool:
+    """Return whether a repository-relative path is generated runtime state."""
+    normalized = str(path).strip().strip('"').replace("\\", "/")
+    if " -> " in normalized:
+        normalized = normalized.rsplit(" -> ", maxsplit=1)[-1].strip('"')
+    return normalized.lower() in AGENTREADY_RUNTIME_PATHS
+
 
 def resolve_repo(repo: str | Path | None = None) -> Path:
     return Path(repo or os.getcwd()).expanduser().resolve(strict=False)

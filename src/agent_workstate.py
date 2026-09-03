@@ -13,6 +13,8 @@ import subprocess
 import sys
 from datetime import datetime
 
+from agent_runtime_paths import is_agentready_runtime_path
+
 GATE_MARKER_REL = os.path.join(".agentready", "gate_status.json")
 HANDOFF_STATUSES = ["complete", "wip", "blocked"]
 
@@ -38,7 +40,7 @@ def tree_state(repo, paths=None) -> dict:
     one lane's uncommitted work — or another agent's in-flight files — does not
     make *your* handoff look dirty. The gate's own marker dir (``.agentready/``)
     is always excluded (ephemeral tooling state, also gitignored)."""
-    args = ["status", "--porcelain"]
+    args = ["status", "--porcelain", "--untracked-files=all"]
     if paths:
         args += ["--", *[str(p) for p in paths if str(p).strip()]]
     rc, out, _ = _git(repo, *args)
@@ -49,7 +51,7 @@ def tree_state(repo, paths=None) -> dict:
         if not ln.strip():
             continue
         path = ln[3:] if len(ln) > 3 else ln.strip()
-        if path.replace("\\", "/").lstrip('"').startswith(".agentready/"):
+        if is_agentready_runtime_path(path):
             continue
         files.append(path)
     return {"git_ok": True, "clean": not files, "count": len(files), "files": files[:25]}

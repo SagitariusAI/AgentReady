@@ -61,3 +61,10 @@ def test_store_layout_constants(monkeypatch):
 def test_worktree_root_under_worktrees(tmp_path):
     repo = _git_repo(tmp_path / "wt")
     assert arp.worktree_root(repo).parent == arp.WORKTREE_ROOT
+
+
+def test_only_generated_agentready_receipts_are_runtime_paths():
+    assert arp.is_agentready_runtime_path(".agentready/gate_status.json") is True
+    assert arp.is_agentready_runtime_path(r".agentready\gate_status.json") is True
+    assert arp.is_agentready_runtime_path(".agentready/ci.json") is False
+    assert arp.is_agentready_runtime_path(".agentready/future-contract.json") is False

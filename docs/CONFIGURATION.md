@@ -90,6 +90,13 @@ lock, event, or worktree pointer is recorded; an existing verified worktree is
 preserved for diagnosis but is not admitted. Worktree setup refusal exits with
 code 7.
 
+The ``.agentready`` directory is a mixed namespace, not disposable runtime
+state. AgentReady excludes only the generated
+``.agentready/gate_status.json`` receipt in Git's local exclude. Tracked
+declarations such as ``.agentready/ci.json`` remain visible to ``git status``
+and work-state gates. Coordination initialization atomically and idempotently
+migrates the legacy broad ``.agentready/`` exclusion to the exact receipt path.
+
 ## Repository-local state
 
 `agent-coordination coordination-init` creates an ignored `.agent-state` pointer in the target repository and records
