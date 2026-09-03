@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -72,6 +73,15 @@ def test_ensure_state_migrates_legacy_agentready_directory_exclude(repo):
     assert "custom.cache" in lines
     assert ".agentready/" not in lines
     assert lines.count(".agentready/gate_status.json") == 1
+
+
+def test_public_gitignore_preserves_future_agentready_contracts():
+    root = Path(__file__).resolve().parents[1]
+    patterns = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+    assert ".agentready/gate_status.json" in patterns
+    assert ".agentready/*" not in patterns
+    assert ".agentready/" not in patterns
 
 
 def test_ensure_state_is_idempotent(repo):
