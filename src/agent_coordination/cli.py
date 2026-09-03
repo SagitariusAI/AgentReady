@@ -115,6 +115,18 @@ def cmd_task_start(a: argparse.Namespace) -> int:
         "quality_override": {"allowed": bool(a.allow_weak), "issues": issues if a.allow_weak else []},
         "memory_compliance": mc.new_policy(required=True, substantive=True),
     }
+    prepared_worktree: tuple[Path, str] | None = None
+    if a.create_worktree:
+        rc, wt_path, branch = _prepare_worktree(
+            repo, task_id, a.agent, base="HEAD", force=False
+        )
+        if rc:
+            return rc
+        task["branch"] = branch
+        task["worktree"] = str(wt_path)
+        task["status"] = "in_progress"
+        prepared_worktree = (wt_path, branch)
+
     tk.write_task(repo, task)
     lk.set_locks(repo, task)
     ev.add_event(repo, task_id, "task_started", agent=a.agent, message=a.title,
@@ -123,8 +135,8 @@ def cmd_task_start(a: argparse.Namespace) -> int:
     chat_paths = f" [paths: {', '.join(paths)}]" if paths else ""
     publish_chat(a.agent, f"started task: {a.title}{chat_paths}")
 
-    if a.create_worktree:
-        _worktree_create(repo, task_id, a.agent, base="HEAD", force=False)
+    if prepared_worktree:
+        _record_worktree(repo, task, a.agent)
 
     print(f"Agent task started: {task_id}")
     print(str(tk.task_path(repo, task_id)))
@@ -521,28 +533,110 @@ def cmd_conflict_check(a: argparse.Namespace) -> int:
 
 
 # ------------------------------------------------------------------------------------ worktree-create
-def _worktree_create(repo: Path, task_id: str, agent: str, base: str, force: bool) -> None:
-    task = tk.read_task(repo, task_id)
+def _worktree_is_valid(wt_path: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(wt_path), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    try:
+        return Path(result.stdout.strip()).resolve() == wt_path.resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
+def _rollback_new_worktree(repo: Path, wt_path: Path) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo), "worktree", "remove", "--force", str(wt_path)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+
+def _prepare_worktree_environment(wt_path: Path) -> int:
+    """Run the repository's declared idempotent setup before admitting a lane."""
+    try:
+        import agent_ci_local
+
+        steps = agent_ci_local.repo_setup_steps(wt_path)
+    except (ImportError, OSError, ValueError) as exc:
+        print(f"Worktree environment refused: {exc}", file=sys.stderr)
+        return 7
+    if not steps:
+        return 0
+
+    print(f"Preparing declared worktree environment: {wt_path}")
+    result = agent_ci_local.run_steps(wt_path, steps, echo=True)
+    if result["failures"]:
+        print(
+            "Worktree environment refused: " + "; ".join(result["failures"]),
+            file=sys.stderr,
+        )
+        return 7
+    print("Declared worktree environment ready")
+    return 0
+
+
+def _prepare_worktree(
+    repo: Path, task_id: str, agent: str, base: str, force: bool
+) -> tuple[int, Path, str]:
     wt_path = st.worktree_path(repo, task_id)
     branch = f"agent/{re.sub(r'[^A-Za-z0-9_-]', '-', agent)}/{task_id}"
 
-    if wt_path.exists() and not force:
-        print(f"Worktree already exists: {wt_path}")
-    else:
-        wt_path.parent.mkdir(parents=True, exist_ok=True)
-        added = subprocess.run(["git", "-C", str(repo), "worktree", "add", "-b", branch,
-                                str(wt_path), base], capture_output=True, text=True, check=False)
-        if added.stdout:
-            print(added.stdout, end="" if added.stdout.endswith("\n") else "\n")
-        if added.returncode != 0:
-            subprocess.run(["git", "-C", str(repo), "worktree", "add", str(wt_path), branch],
-                           capture_output=True, text=True, check=False)
+    if wt_path.exists():
+        if not _worktree_is_valid(wt_path):
+            print(f"Worktree verification refused: {wt_path}", file=sys.stderr)
+            return 5, wt_path, branch
+        rc = _prepare_worktree_environment(wt_path)
+        if rc:
+            return rc, wt_path, branch
+        print(f"Worktree already exists and verified: {wt_path}")
+        return 0, wt_path, branch
 
-    task["branch"] = branch
-    task["worktree"] = str(wt_path)
-    task["status"] = "in_progress"
-    tk.write_task(repo, task)
-    lk.set_locks(repo, task)
+    wt_path.parent.mkdir(parents=True, exist_ok=True)
+    added = subprocess.run(
+        ["git", "-C", str(repo), "worktree", "add", "-b", branch, str(wt_path), base],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if added.returncode != 0:
+        added = subprocess.run(
+            ["git", "-C", str(repo), "worktree", "add", str(wt_path), branch],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    if added.stdout:
+        print(added.stdout, end="" if added.stdout.endswith("\n") else "\n")
+    if added.returncode != 0:
+        if added.stderr:
+            print(added.stderr.rstrip(), file=sys.stderr)
+        print("Worktree creation refused", file=sys.stderr)
+        return 4, wt_path, branch
+    if not _worktree_is_valid(wt_path):
+        _rollback_new_worktree(repo, wt_path)
+        print(f"Worktree creation refused after verification: {wt_path}", file=sys.stderr)
+        return 5, wt_path, branch
+    rc = _prepare_worktree_environment(wt_path)
+    if rc:
+        _rollback_new_worktree(repo, wt_path)
+        return rc, wt_path, branch
+    return 0, wt_path, branch
+
+
+def _record_worktree(repo: Path, task: dict, agent: str) -> None:
+    task_id = str(task["id"])
+    wt_path = Path(str(task["worktree"]))
+    branch = str(task["branch"])
 
     state = st.ensure_state(repo)
     pointer = {"task_id": task_id, "branch": branch, "worktree": str(wt_path), "agent": agent,
@@ -555,10 +649,23 @@ def _worktree_create(repo: Path, task_id: str, agent: str, base: str, force: boo
     print(f"Branch: {branch}")
 
 
+def _worktree_create(repo: Path, task_id: str, agent: str, base: str, force: bool) -> int:
+    task = tk.read_task(repo, task_id)
+    rc, wt_path, branch = _prepare_worktree(repo, task_id, agent, base, force)
+    if rc:
+        return rc
+    task["branch"] = branch
+    task["worktree"] = str(wt_path)
+    task["status"] = "in_progress"
+    tk.write_task(repo, task)
+    lk.set_locks(repo, task)
+    _record_worktree(repo, task, agent)
+    return 0
+
+
 def cmd_worktree_create(a: argparse.Namespace) -> int:
     repo = st.resolve_repo(a.repo)
-    _worktree_create(repo, a.task_id, a.agent, base=a.base, force=a.force)
-    return 0
+    return _worktree_create(repo, a.task_id, a.agent, base=a.base, force=a.force)
 
 
 # --------------------------------------------------------------------------------- coordination-init

@@ -124,6 +124,7 @@ TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b")
 RESERVED_EMAIL_DOMAINS = {"example.com", "example.net", "example.org", "example.invalid"}
+DECLARATIVE_RUNTIME_PATHS = {".agentready/ci.json"}
 
 
 @dataclass(frozen=True)
@@ -148,7 +149,7 @@ def _path_findings(path: str) -> list[Finding]:
     parts = {part.lower() for part in PurePosixPath(normalized).parts}
     findings: list[Finding] = []
     blocked = sorted(parts & FORBIDDEN_SEGMENTS)
-    if blocked:
+    if blocked and normalized.lower() not in DECLARATIVE_RUNTIME_PATHS:
         findings.append(Finding("runtime_path", normalized, ", ".join(blocked)))
     lower = normalized.lower()
     suffixes = Path(lower).suffixes

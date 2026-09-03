@@ -257,6 +257,69 @@ def test_worktree_create(repo):
     assert (_store(repo) / "worktrees" / f"{task_id}.json").exists()
 
 
+def test_task_start_refuses_and_rolls_back_when_declared_setup_fails(repo, monkeypatch):
+    prepared = []
+
+    def refuse_environment(wt_path):
+        prepared.append(wt_path)
+        return 7
+
+    monkeypatch.setattr(cli, "_prepare_worktree_environment", refuse_environment)
+    rc = cli.main(
+        [
+            "task-start",
+            "--repo",
+            str(repo),
+            "--title",
+            "Fail closed declared environment gate",
+            "--agent",
+            "claude",
+            "--summary",
+            "refuse lane admission when repository setup cannot complete",
+            "--paths",
+            "src/unit_a.py",
+            "--skip-awareness",
+            "--create-worktree",
+        ]
+    )
+
+    assert rc == 7
+    assert len(prepared) == 1
+    assert not prepared[0].exists()
+    state = _store(repo)
+    assert not list((state / "tasks").glob("*.json"))
+    assert not list((state / "events").glob("*.jsonl"))
+    assert not list((state / "locks").glob("*.json"))
+    assert not list((state / "worktrees").glob("*.json"))
+
+
+def test_worktree_environment_uses_the_declared_setup_runner(repo):
+    (repo / ".agentready").mkdir()
+    (repo / ".agentready" / "ci.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "replace",
+                "setup": [
+                    {
+                        "name": "prepare disposable lane",
+                        "argv": [
+                            "{repo_python}",
+                            "-c",
+                            "from pathlib import Path; Path('lane.ready').write_text('ready')",
+                        ],
+                    }
+                ],
+                "steps": [{"name": "gate", "argv": ["echo", "ok"]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert cli._prepare_worktree_environment(repo) == 0
+    assert (repo / "lane.ready").read_text() == "ready"
+
+
 def test_task_claim_unions_paths_instead_of_replacing(repo):
     # task-start already claims src/unit_a.py; claiming a NEW path must UNION, not
     # replace -- otherwise the first path is silently dropped and a later commit

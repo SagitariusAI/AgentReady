@@ -27,19 +27,30 @@ def _venv_python() -> Path:
     return configured if configured.exists() else Path(sys.executable)
 
 
+def _repo_python(repo: Path) -> Path:
+    """Resolve the repository interpreter, falling back to AgentReady's runtime."""
+    repo = Path(repo)
+    candidates = (
+        repo / ".venv" / "Scripts" / "python.exe",
+        repo / ".venv" / "bin" / "python",
+    )
+    return next((candidate for candidate in candidates if candidate.is_file()), _venv_python())
+
+
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def detect_steps(repo: Path) -> list[dict]:
+def detect_steps(repo: Path, *, include_setup: bool = True) -> list[dict]:
     """Ordered steps that would run, byte-faithful to agent-ci-local.ps1 L40-86 detection."""
     repo = Path(repo)
-    py = _venv_python()
+    py = _repo_python(repo)
     steps: list[dict] = []
     repo_ci = _repo_local_ci(repo)
+    setup = list(repo_ci.get("setup", [])) if repo_ci and include_setup else []
 
     if repo_ci and repo_ci["mode"] == "replace":
-        return repo_ci["steps"]
+        return [*setup, *repo_ci["steps"]]
 
     def has(rel: str) -> bool:
         return (repo / rel).exists()
@@ -78,9 +89,57 @@ def detect_steps(repo: Path) -> list[dict]:
                       "argv": [str(py), "-m", "pytest", "-q", str(repo / "tests")],
                       "pythonpath": str(repo / "src")})
     if repo_ci and repo_ci["mode"] == "prepend":
-        return [*repo_ci["steps"], *steps]
+        return [*setup, *repo_ci["steps"], *steps]
     if repo_ci and repo_ci["mode"] == "append":
-        return [*steps, *repo_ci["steps"]]
+        return [*setup, *steps, *repo_ci["steps"]]
+    return [*setup, *steps]
+
+
+def _configured_steps(
+    repo: Path,
+    raw_steps: object,
+    *,
+    field: str,
+    required: bool,
+    fail_fast: bool = False,
+) -> list[dict]:
+    if raw_steps is None and not required:
+        return []
+    if not isinstance(raw_steps, list) or not raw_steps:
+        qualifier = "at least one " if required else "a non-empty "
+        raise ValueError(f"{REPO_CI_CONFIG_REL} must declare {qualifier}{field} step")
+
+    steps: list[dict] = []
+    for idx, step in enumerate(raw_steps, start=1):
+        if not isinstance(step, dict):
+            raise ValueError(f"{REPO_CI_CONFIG_REL} {field} step {idx} must be an object")
+        argv = step.get("argv")
+        if not isinstance(argv, list) or not argv or not all(isinstance(part, str) for part in argv):
+            raise ValueError(
+                f"{REPO_CI_CONFIG_REL} {field} step {idx} argv must be a non-empty string list"
+            )
+        entry = {
+            "name": str(step.get("name") or f"repo-local {field} step {idx}"),
+            "argv": [
+                str(_repo_python(repo)) if part == "{repo_python}" else part
+                for part in argv
+            ],
+        }
+        pythonpath = step.get("pythonpath")
+        if isinstance(pythonpath, str) and pythonpath:
+            entry["pythonpath"] = pythonpath
+        env = step.get("env")
+        if env is not None:
+            if not isinstance(env, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) for k, v in env.items()
+            ):
+                raise ValueError(
+                    f"{REPO_CI_CONFIG_REL} {field} step {idx} env must be a string map"
+                )
+            entry["env"] = dict(env)
+        if fail_fast:
+            entry["fail_fast"] = True
+        steps.append(entry)
     return steps
 
 
@@ -101,29 +160,21 @@ def _repo_local_ci(repo: Path) -> dict | None:
     mode = str(raw.get("mode", "replace")).lower()
     if mode not in {"replace", "prepend", "append"}:
         raise ValueError(f"{REPO_CI_CONFIG_REL} mode must be replace, prepend, or append")
-    configured_steps = raw.get("steps")
-    if not isinstance(configured_steps, list) or not configured_steps:
-        raise ValueError(f"{REPO_CI_CONFIG_REL} must declare at least one step")
+    setup = _configured_steps(
+        repo,
+        raw.get("setup"),
+        field="setup",
+        required=False,
+        fail_fast=True,
+    )
+    steps = _configured_steps(repo, raw.get("steps"), field="CI", required=True)
+    return {"mode": mode, "setup": setup, "steps": steps}
 
-    steps: list[dict] = []
-    for idx, step in enumerate(configured_steps, start=1):
-        if not isinstance(step, dict):
-            raise ValueError(f"{REPO_CI_CONFIG_REL} step {idx} must be an object")
-        argv = step.get("argv")
-        if not isinstance(argv, list) or not argv or not all(isinstance(part, str) for part in argv):
-            raise ValueError(f"{REPO_CI_CONFIG_REL} step {idx} argv must be a non-empty string list")
-        entry = {"name": str(step.get("name") or f"repo-local CI step {idx}"), "argv": argv}
-        pythonpath = step.get("pythonpath")
-        if isinstance(pythonpath, str) and pythonpath:
-            entry["pythonpath"] = pythonpath
-        env = step.get("env")
-        if env is not None:
-            if not isinstance(env, dict) or not all(isinstance(k, str) and isinstance(v, str)
-                                                    for k, v in env.items()):
-                raise ValueError(f"{REPO_CI_CONFIG_REL} step {idx} env must be a string map")
-            entry["env"] = dict(env)
-        steps.append(entry)
-    return {"mode": mode, "steps": steps}
+
+def repo_setup_steps(repo: Path) -> list[dict]:
+    """Return the idempotent environment setup declared for this repository."""
+    contract = _repo_local_ci(Path(repo))
+    return list(contract.get("setup", [])) if contract else []
 
 
 def run_steps(repo: Path, steps: list[dict], *, echo: bool = True) -> dict:
@@ -131,6 +182,7 @@ def run_steps(repo: Path, steps: list[dict], *, echo: bool = True) -> dict:
     repo = Path(repo)
     log: list[str] = [f"Agent local CI: {repo}", f"Generated: {_now()}", ""]
     failures: list[str] = []
+    steps_run = 0
 
     def emit(line: str) -> None:
         log.append(line)
@@ -138,6 +190,8 @@ def run_steps(repo: Path, steps: list[dict], *, echo: bool = True) -> dict:
             print(line)
 
     for s in steps:
+        steps_run += 1
+        step_failed = False
         emit(f"===== {s['name']} =====")
         env = {**os.environ}
         if s.get("pythonpath"):
@@ -153,18 +207,33 @@ def run_steps(repo: Path, steps: list[dict], *, echo: bool = True) -> dict:
             emit(f"EXIT {s['name']} = {code}")
             if code != 0:
                 failures.append(f"{s['name']} exited {code}")
+                step_failed = True
         except Exception as exc:  # noqa: BLE001 - mirror PS try/catch step error capture
             emit(f"ERROR {s['name']} = {exc}")
             failures.append(f"{s['name']} error: {exc}")
+            step_failed = True
         emit("")
+        if step_failed and s.get("fail_fast"):
+            emit(f"ABORT remaining CI steps: required environment setup failed at {s['name']}")
+            break
 
-    if not steps:
+    if not steps_run:
         emit("WARN no known CI/test entrypoints detected")
     if failures:
         emit("===== CI SUMMARY =====")
         for f in failures:
             emit(f"FAIL {f}")
-    return {"steps_run": len(steps), "failures": failures, "log": "\n".join(log)}
+    return {"steps_run": steps_run, "failures": failures, "log": "\n".join(log)}
+
+
+def _combine_step_results(*results: dict | None) -> dict:
+    """Combine sequential setup and gate phases into one truthful receipt."""
+    present = [result for result in results if result is not None]
+    return {
+        "steps_run": sum(result["steps_run"] for result in present),
+        "failures": [failure for result in present for failure in result["failures"]],
+        "log": "\n".join(result["log"] for result in present),
+    }
 
 
 def decide(failures: list[str], steps_run: int) -> dict:
@@ -207,8 +276,15 @@ def _report_contract(repo: Path, report_dir: Path, primary: Path, status: str, s
 def run(repo: Path, *, no_mark: bool = False, echo: bool = True, write_outputs: bool = True) -> dict:
     """Full CI run: detect -> run -> decide (+ optional log/report-contract/marker writes)."""
     repo = Path(repo)
-    steps = detect_steps(repo)
-    result = run_steps(repo, steps, echo=echo)
+    setup_steps = repo_setup_steps(repo)
+    setup_result = run_steps(repo, setup_steps, echo=echo) if setup_steps else None
+    if setup_result and setup_result["failures"]:
+        result = setup_result
+    else:
+        # Setup may have created the repository venv. Resolve the gate argv only
+        # after setup so {repo_python} names the environment that will run it.
+        gate_result = run_steps(repo, detect_steps(repo, include_setup=False), echo=echo)
+        result = _combine_step_results(setup_result, gate_result)
     verdict = decide(result["failures"], result["steps_run"])
     result.update(verdict)
     if write_outputs:
@@ -250,8 +326,7 @@ def _head(repo: Path) -> str:
 def shadow(repo: Path) -> int:
     """Compute the Python verdict and write a comparison vs the authoritative marker. Always returns 0."""
     repo = Path(repo)
-    steps = detect_steps(repo)
-    result = run_steps(repo, steps, echo=False)
+    result = run(repo, no_mark=True, echo=False, write_outputs=False)
     verdict = decide(result["failures"], result["steps_run"])
     marker = _read_marker(repo)
     head = _head(repo)

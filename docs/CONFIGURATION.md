@@ -55,6 +55,41 @@ If it is not set, capture data is written to:
 <target-repository>\.factory_capture
 ```
 
+## Repository CI and environment setup
+
+A repository can replace, prepend, or append AgentReady's detected CI steps in
+`.agentready/ci.json`. Commands are argv arrays rather than shell strings. A
+repository that needs a locked dependency profile or generated native bindings
+can also declare an idempotent `setup` array:
+
+```json
+{
+  "version": 1,
+  "mode": "replace",
+  "setup": [
+    {
+      "name": "locked development environment",
+      "argv": ["uv", "sync", "--frozen", "--group", "dev"]
+    }
+  ],
+  "steps": [
+    {
+      "name": "project tests",
+      "argv": ["{repo_python}", "-m", "pytest", "-q"]
+    }
+  ]
+}
+```
+
+AgentReady runs setup before admitting an AgentReady-created worktree and again
+before the repository gate. Gate commands are resolved after setup, so
+`{repo_python}` uses `.venv\Scripts\python.exe` on Windows or
+`.venv/bin/python` on POSIX when setup creates that environment. The first
+setup failure aborts the gate. A newly-created worktree is removed and no task,
+lock, event, or worktree pointer is recorded; an existing verified worktree is
+preserved for diagnosis but is not admitted. Worktree setup refusal exits with
+code 7.
+
 ## Repository-local state
 
 `agent-coordination coordination-init` creates an ignored `.agent-state` pointer in the target repository and records

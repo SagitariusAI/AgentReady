@@ -113,6 +113,147 @@ def test_detect_repo_local_ci_replaces_generic_steps(tmp_path):
     ]
 
 
+def test_declared_setup_runs_before_ci_and_reresolves_repo_python(tmp_path, monkeypatch):
+    (tmp_path / ".agentready").mkdir()
+    (tmp_path / ".agentready" / "ci.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "replace",
+                "setup": [
+                    {
+                        "name": "prepare locked environment",
+                        "argv": [
+                            "{repo_python}",
+                            "-c",
+                            "from pathlib import Path; Path('environment.ready').write_text('ready')",
+                        ],
+                    }
+                ],
+                "steps": [
+                    {
+                        "name": "require prepared environment",
+                        "argv": [
+                            "{repo_python}",
+                            "-c",
+                            "from pathlib import Path; assert Path('environment.ready').read_text() == 'ready'",
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    resolution_states = []
+
+    def observed_repo_python(repo):
+        resolution_states.append((Path(repo) / "environment.ready").exists())
+        return Path(sys.executable)
+
+    monkeypatch.setattr(ci, "_repo_python", observed_repo_python)
+    result = ci.run(tmp_path, echo=False, write_outputs=False)
+
+    assert result["exit_code"] == 0
+    assert result["steps_run"] == 2
+    assert (tmp_path / "environment.ready").read_text() == "ready"
+    assert resolution_states[-1] is True
+
+
+def test_failed_declared_setup_aborts_before_any_ci_step(tmp_path):
+    (tmp_path / ".agentready").mkdir()
+    (tmp_path / ".agentready" / "ci.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "replace",
+                "setup": [
+                    {
+                        "name": "broken locked environment",
+                        "argv": ["{repo_python}", "-c", "raise SystemExit(9)"],
+                    }
+                ],
+                "steps": [
+                    {
+                        "name": "must never run",
+                        "argv": [
+                            "{repo_python}",
+                            "-c",
+                            "from pathlib import Path; Path('ci-ran').write_text('bad')",
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = ci.run(tmp_path, echo=False, write_outputs=False)
+
+    assert result["exit_code"] == 1
+    assert result["steps_run"] == 1
+    assert result["failures"] == ["broken locked environment exited 9"]
+    assert "ABORT remaining CI steps" in result["log"]
+    assert "must never run" not in result["log"]
+    assert not (tmp_path / "ci-ran").exists()
+
+
+def test_setup_declaration_must_be_a_nonempty_step_list(tmp_path):
+    (tmp_path / ".agentready").mkdir()
+    (tmp_path / ".agentready" / "ci.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "replace",
+                "setup": [],
+                "steps": [{"name": "gate", "argv": ["echo", "ok"]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="non-empty setup step"):
+        ci.detect_steps(tmp_path)
+
+
+def test_repo_python_prefers_repository_virtual_environment(tmp_path):
+    expected = tmp_path / ".venv" / "Scripts" / "python.exe"
+    expected.parent.mkdir(parents=True)
+    expected.write_text("synthetic interpreter", encoding="utf-8")
+
+    assert ci._repo_python(tmp_path) == expected
+
+
+def test_detected_python_steps_use_repository_virtual_environment(tmp_path):
+    expected = tmp_path / ".venv" / "Scripts" / "python.exe"
+    expected.parent.mkdir(parents=True)
+    expected.write_text("synthetic interpreter", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    steps = ci.detect_steps(tmp_path)
+
+    assert steps[0]["argv"][0] == str(expected)
+    assert steps[1]["argv"][0] == str(expected)
+
+
+def test_public_source_declares_its_complete_locked_gate_environment():
+    repo = Path(__file__).resolve().parents[1]
+    contract = json.loads((repo / ".agentready" / "ci.json").read_text(encoding="utf-8"))
+
+    assert contract["setup"] == [
+        {
+            "name": "locked public development environment",
+            "argv": ["uv", "sync", "--frozen", "--group", "dev", "--extra", "toolbox"],
+        }
+    ]
+    assert [step["name"] for step in contract["steps"]] == [
+        "public lint",
+        "public type check",
+        "public tests",
+        "public distribution build",
+    ]
+
+
 def test_write_marker_suppressed_by_flag(tmp_path):
     assert ci.write_marker(tmp_path, "pass", no_mark=True) is False
     assert not (tmp_path / ".agentready" / "gate_status.json").exists()

@@ -15,7 +15,9 @@ dist/
 # AgentReady runtime state and evidence
 .agent-reports/
 .agent-state/
-.agentready/
+.agentready/*
+!.agentready/
+!.agentready/ci.json
 .factory_capture/
 .agent_graph/
 coordination/

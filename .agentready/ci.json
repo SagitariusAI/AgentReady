@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mode": "replace",
+  "setup": [
+    {
+      "name": "locked public development environment",
+      "argv": ["uv", "sync", "--frozen", "--group", "dev", "--extra", "toolbox"]
+    }
+  ],
+  "steps": [
+    {
+      "name": "public lint",
+      "argv": ["uv", "run", "ruff", "check", "src", "tests"]
+    },
+    {
+      "name": "public type check",
+      "argv": ["uv", "run", "pyright", "src"]
+    },
+    {
+      "name": "public tests",
+      "argv": ["uv", "run", "pytest", "-q"]
+    },
+    {
+      "name": "public distribution build",
+      "argv": ["uv", "build"]
+    }
+  ]
+}

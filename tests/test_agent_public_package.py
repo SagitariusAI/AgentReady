@@ -94,6 +94,24 @@ def test_guard_rejects_database_and_prepopulated_runtime_payloads(tmp_path: Path
     assert any(item.category in {"persistence_payload", "runtime_path"} for item in findings)
 
 
+def test_guard_allows_only_the_declarative_agentready_ci_contract(tmp_path: Path):
+    repo = _repo(tmp_path)
+    contract = repo / ".agentready" / "ci.json"
+    contract.parent.mkdir()
+    contract.write_text('{"version": 1, "steps": [{"argv": ["pytest"]}]}', encoding="utf-8")
+
+    findings, _ = scan_source(repo)
+
+    assert not any(item.path == ".agentready/ci.json" for item in findings)
+
+    (contract.parent / "gate_status.json").write_text('{"status": "pass"}', encoding="utf-8")
+    findings, _ = scan_source(repo)
+    assert any(
+        item.category == "runtime_path" and item.path == ".agentready/gate_status.json"
+        for item in findings
+    )
+
+
 def test_guard_requires_canonical_header_on_python_files(tmp_path: Path):
     repo = _repo(tmp_path)
     (repo / "missing_header.py").write_text("VALUE = 1\n", encoding="utf-8")
